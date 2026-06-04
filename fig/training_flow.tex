@@ -1,0 +1,68 @@
+% ── Figure: Three-Phase Training Flow ─────────────────────────────────────
+\begin{tikzpicture}[
+    >=Stealth,
+    font=\small,
+    box/.style    = {draw, rounded corners=3pt, align=center},
+    phase/.style  = {box, minimum width=4.2cm, minimum height=2.2cm},
+    rwd/.style    = {box, minimum width=3.4cm, minimum height=0.45cm,
+                     fill=yellow!25, font=\scriptsize},
+    ckpt/.style   = {box, minimum width=2.2cm, minimum height=0.4cm,
+                     fill=white, font=\scriptsize},
+    arr/.style    = {->, thick},
+    darr/.style   = {->, thin, dashed, gray},
+    lbl/.style    = {font=\scriptsize},
+]
+
+%% ── Dataset ───────────────────────────────────────────────────────────────
+\node[box, fill=gray!12, minimum width=1.6cm, minimum height=0.9cm,
+      font=\scriptsize] (ds) at (-7.0, 0)
+  {Dataset\\$\mathcal{D}$};
+
+%% ── Phase 1 ──────────────────────────────────────────────────────────────
+\node[phase, fill=blue!7]  (p1) at (-3.8, 0) {};
+\node[font=\scriptsize\bfseries, above=0.5cm of p1.center] {\textbf{Phase 1}};
+\node[font=\scriptsize, at=(p1.center), yshift= 0.1cm] {NLL Pretraining};
+\node[rwd] (r1) at (-3.8, -0.72) {$\mathcal{L}_{\mathrm{NLL}}$};
+
+\draw[arr] (ds.east) -- (p1.west);
+
+\node[ckpt] (ck1) at (-3.8, -1.72) {$\pi^{(1)}_\theta$};
+\draw[arr] (p1.south) -- (ck1.north);
+
+%% ── Phase 2 ──────────────────────────────────────────────────────────────
+\node[phase, fill=green!7] (p2) at (1.0,  0) {};
+\node[font=\scriptsize\bfseries, above=0.5cm of p2.center] {\textbf{Phase 2}};
+\node[font=\scriptsize, at=(p2.center), yshift= 0.28cm] {PPO Count RL};
+\node[rwd] (r2) at (1.0, -0.35) {$r = T^*(f)\;/\;T$};
+\node[font=\scriptsize, text=gray] at (1.0,-0.85) {GRPO + entropy};
+
+\draw[arr] (ck1.east) -- ++(0.2,0) |- (p2.west);
+
+\node[ckpt] (ck2) at (1.0, -1.72) {$\pi^{(2)}_\theta$};
+\draw[arr] (p2.south) -- (ck2.north);
+
+%% ── Phase 3 ──────────────────────────────────────────────────────────────
+\node[phase, fill=red!6]  (p3) at (6.0,  0) {};
+\node[font=\scriptsize\bfseries, above=0.5cm of p3.center] {\textbf{Phase 3}};
+\node[font=\scriptsize, at=(p3.center), yshift= 0.28cm] {PPO Physical RL};
+\node[rwd] (r3) at (6.0, -0.35) {$r = \Phi^*(f)\;/\;\Phi$};
+\node[font=\scriptsize, text=gray] at (6.0,-0.85) {joint PDN\,+\,PUN};
+
+\draw[arr] (ck2.east) -- ++(0.2,0) |- (p3.west);
+
+\node[ckpt] (ck3) at (6.0, -1.72) {$\pi^{(3)}_\theta$};
+\draw[arr] (p3.south) -- (ck3.north);
+
+%% ── ASTRAN oracle ─────────────────────────────────────────────────────────
+\node[box, fill=orange!15, minimum width=1.8cm, minimum height=0.7cm,
+      font=\scriptsize] (astran) at (8.4, -0.7)
+  {ASTRAN\\$\Phi$};
+
+\draw[darr] (astran.west) -- node[above, font=\tiny]{$\Phi$} (p3.east);
+
+%% ── Phase header labels ───────────────────────────────────────────────────
+\node[lbl, text=blue!70,          above=1.32cm of p1] {initialise};
+\node[lbl, text=green!50!black,   above=1.32cm of p2] {min.\ transistors};
+\node[lbl, text=red!60,           above=1.32cm of p3] {optimise placement};
+
+\end{tikzpicture}

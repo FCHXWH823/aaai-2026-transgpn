@@ -1,0 +1,35 @@
+\begin{thebibliography}{6}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Gilmer et~al.(2017)Gilmer, Schütt, Mayr et~al.}]{gilmer2017mpnn}
+Gilmer, J.; Schütt, K.~T.; Mayr, A.; et~al. 2017.
+\newblock Neural Message Passing for Quantum Chemistry.
+\newblock \emph{International Conference on Machine Learning (ICML)}.
+
+\bibitem[{Shao et~al.(2024)Shao, Wang, Zhu et~al.}]{grpo}
+Shao, Z.; Wang, P.; Zhu, Q.; et~al. 2024.
+\newblock DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models.
+\newblock \emph{arXiv preprint arXiv:2402.03300}.
+
+\bibitem[{\TODO{Authors}(2026)}]{mctsptns}
+\TODO{Authors}. 2026.
+\newblock {MCTS-PTNS}: General and Scalable Physical-Aware Transistor Network Synthesis via Monte Carlo Tree Search.
+\newblock \emph{International Conference on Computer-Aided Design (ICCAD)}.
+
+\bibitem[{\TODO{Authors}(\TODO{Year}{\natexlab{a}})}]{miniTNtk}
+\TODO{Authors}. \TODO{Year}{\natexlab{a}}.
+\newblock {MiniTNtk}: \TODO{Full title}.
+\newblock \emph{\TODO{Venue}}.
+
+\bibitem[{\TODO{Authors}(\TODO{Year}{\natexlab{b}})}]{muSTNet}
+\TODO{Authors}. \TODO{Year}{\natexlab{b}}.
+\newblock {MuSTNet}: {SAT}-Based Exact Multi-Stage Transistor Network Synthesis with Placement Awareness.
+\newblock \emph{\TODO{Venue}}.
+
+\bibitem[{Ziesemer and Reis(2014)}]{astran}
+Ziesemer, A.; and Reis, R. 2014.
+\newblock {ASTRAN}: Automatic Synthesis of Transistor Networks.
+\newblock In \emph{IEEE International Symposium on Integrated Circuits and Systems (ISICAS)}.
+\newblock Open-source standard-cell layout framework; \url{https://github.com/aziesemer/astran}.
+
+\end{thebibliography}

@@ -1,0 +1,91 @@
+% ============================================================
+% TransSyn — AAAI 2027 Submission
+% Download aaai27.sty from https://aaai.org/authorkit
+% ============================================================
+\documentclass[letterpaper]{article}
+\usepackage[submission]{aaai2027}  % remove [submission] for camera-ready
+% NOTE: do NOT load times/helvet/courier — aaai2027.sty manages fonts automatically
+\usepackage{url}
+\usepackage{xspace}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+% Math
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+
+% Figures / tables
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{diagbox}
+\usepackage{array}
+
+% Algorithms
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+
+% Lists and misc
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+% TikZ
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric,
+                decorations.pathreplacing}
+
+% ── Theorem environments ────────────────────────────────────
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+
+% ── Macros ──────────────────────────────────────────────────
+\newcommand{\SRC}{\texttt{SRC}}
+\newcommand{\SNK}{\texttt{SNK}}
+\newcommand{\Pon}{P^{+}}
+\newcommand{\Poff}{P^{-}}
+\newcommand{\Gcal}{\mathcal{G}}
+\newcommand{\method}{TransSGPN}
+\newcommand{\sgpn}{Switching Graph Policy Network\xspace}
+\newcommand{\SGPN}{SGPN\xspace}
+
+% ── Colors for review markup (remove before submission) ─────
+\newcommand{\TODO}[1]{{\color{red}\textbf{[TODO: #1]}}}
+\newcommand{\NOTE}[1]{{\color{blue}\textit{[#1]}}}
+
+% ============================================================
+\begin{document}
+
+\title{\method: Transistor Network Synthesis via
+       Switching Graph Policy Network}
+
+\author{
+  Anonymous Authors
+}
+\affiliations{
+  Anonymous Institution
+}
+
+\maketitle
+
+% ── Abstract ────────────────────────────────────────────────
+\input{0-abstract}
+
+% ── Body ────────────────────────────────────────────────────
+\input{1-introduction}
+\input{2-preliminaries}
+\input{3-methodology}
+\input{4-experiments}
+\input{5-conclusion}
+
+% ── References ──────────────────────────────────────────────
+\bibliographystyle{aaai2027}
+\bibliography{references}
+
+\end{document}

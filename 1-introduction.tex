@@ -1,0 +1,143 @@
+\section{Introduction}
+\label{sec:intro}
+
+Transistor network synthesis is a foundational step in CMOS standard-cell
+design.
+Given a Boolean function $f$, the goal is to build a minimum-transistor
+switching network—an undirected graph whose edges represent transistors
+and whose source-to-sink connectivity implements $f$.
+The synthesized topology directly determines transistor count,
+diffusion-sharing opportunities, and downstream layout quality;
+even a single extra transistor can degrade area, power, and timing
+after placement and routing.
+
+\paragraph{Limitations of existing methods.}
+Exact SAT-based methods~\cite{muSTNet,miniTNtk} can provably find
+minimum-transistor solutions but solve each function from scratch,
+with no reuse across instances.
+Runtime grows exponentially with the number of variables, and the methods
+offer no generalization to unseen functions.
+MCTS-based approaches~\cite{mctsptns} improve scalability but are still
+per-instance search procedures that cannot internalize cross-function
+structural patterns.
+Neither family of methods \emph{learns} a generalizable synthesis policy,
+so every new function incurs the full cost of a fresh optimization.
+
+\paragraph{Our approach: learned sequential graph generation.}
+We treat transistor network synthesis as a sequential
+graph-generation Markov decision process (MDP) and train a policy
+to solve it.
+At each step the policy places one transistor, guided by a graph neural
+network that observes the current partial circuit together with a
+compact representation of the target function.
+A single policy trained over a distribution of Boolean functions
+generalizes at inference time to new functions without any per-instance
+search.
+
+\paragraph{Key technical ideas.}
+\textbf{(1) Theoretical guarantees by construction.}
+
+We prove a \emph{Monotonicity} theorem showing that adding transistors
+never removes existing conducting paths, and derive a
+\emph{Safety Inheritance} corollary that reduces safety verification
+at each step from checking the whole network to a single BFS on the
+new edge.
+Safety and correctness are therefore maintained as invariants throughout
+the entire trajectory, not checked post-hoc.
+
+\textbf{(2) A novel GNN architecture for transistor synthesis.}
+We design \method, whose core is the \sgpn (\SGPN) — a five-head
+factored policy built on a Message Passing Neural Network (MPNN)~\cite{gilmer2017mpnn} backbone.
+Each head specializes in one sub-decision of the action
+(source node, drain node, control variable, polarity),
+with safety masks applied independently at each head.
+A learnable virtual-node embedding allows the policy to propose
+fresh topology without pre-committing to a node count.
+All heads share a single MPNN forward pass over a
+\emph{unified graph} that merges the partial synthesized network
+with a fixed SOP compensate network.
+
+\textbf{(3) Three-phase training toward minimum transistor count and physical quality.}
+Phase~1 NLL pretraining on known-optimal solutions initializes the policy.
+Phase~2 PPO finetuning with a GRPO group-relative baseline, an adaptive
+self-tightening reward, and an entropy bonus drives convergence toward
+minimum transistor count without mode collapse.
+Phase~3 extends the RL loop to joint PDN+PUN synthesis with a physical
+placement reward from ASTRAN~\cite{astran}, directly optimizing the
+weighted placement objective (cell width, gate mismatch, wire length,
+routing density, and diffusion gaps).
+
+\paragraph{Contributions.}
+\begin{enumerate}[leftmargin=*, topsep=2pt, itemsep=3pt]
+
+  \item \textbf{Theoretical foundations for sequential transistor synthesis.}
+        We prove a Monotonicity theorem (adding transistors is order-invariant
+        for conducting paths) and derive a Safety Inheritance corollary that
+        makes safety checking $O(|\Poff| \cdot |V|)$ per transistor candidate
+        — independent of the number of already-placed transistors.
+        Together they guarantee that any trajectory produced under our
+        action masks is \emph{correct and safe by construction}, with no
+        post-hoc verification needed (Section~\ref{sec:theory}).
+
+  \item \textbf{A new five-head architecture for transistor network synthesis.}
+        \method{} decomposes transistor placement into four factored
+        sub-decisions, each handled by a specialized MLP head sharing
+        an MPNN backbone.
+        Key design choices include:
+        (a) a \emph{unified graph} state that fuses the partial circuit
+            $G_t$ with a fixed SOP compensate network $C$ encoding the
+            target function, giving the GNN simultaneous access to
+            current topology and remaining coverage obligations;
+        (b) a \emph{virtual new-node embedding} that extends the node space
+            dynamically, allowing the policy to create fresh internal nodes
+            without an explicit node-count decision;
+        (c) \emph{per-head safety masking} applied independently to the
+            node, variable, and polarity heads, so that the generated
+            action is guaranteed safe without additional filtering;
+        (d) a \emph{batched PackedGraph forward pass} that packs all
+            trajectory steps into one MPNN call, replacing
+            $O(K \cdot T_{\max})$ sequential forward passes with one
+            (Section~\ref{sec:method}).
+
+  \item \textbf{Three-phase training: logical and physical optimization.}
+        Phase~1 NLL pretraining initializes the policy on known-optimal solutions.
+        Phase~2 PPO finetuning with a GRPO group-relative baseline, adaptive
+        self-tightening reward $r = T^*(f)/T$, and entropy bonus converges toward
+        minimum transistor count.
+        Phase~3 extends RL to \emph{joint PDN+PUN synthesis} with a physical
+        placement reward, bridging logical synthesis and layout quality in a
+        single learned policy
+        (Section~\ref{sec:method}).
+
+  \item \textbf{Physical-aware joint synthesis via ASTRAN reward.}
+        For a target function $f$, we simultaneously synthesize the
+        pull-down network (PDN, implementing $\lnot f(\mathbf{x})$) and
+        pull-up network (PUN, implementing $f(\lnot\mathbf{x})$) using
+        the same policy.
+        Each complete PDN+PUN pair is evaluated by ASTRAN~\cite{astran}
+        — a standard-cell layout tool — which returns five placement metrics:
+        cell width (CPP), gate mismatches, wire length, routing density,
+        and diffusion cuts.
+        Their weighted sum serves as the joint RL reward, aligning the
+        policy's objective with ASTRAN's own SA optimization
+        (Section~\ref{sec:physical}).
+
+  \item \textbf{Empirical validation.}
+        We evaluate on a benchmark of \TODO{N} Boolean functions with up
+        to three variables.
+        Phase~2 achieves \TODO{X\%} synthesis success rate and matches the
+        minimum transistor count on \TODO{Y\%} of functions.
+        Phase~3 further reduces the ASTRAN placement objective by \TODO{Z\%}
+        compared to the Phase~2 baseline, at \TODO{W$\times$} the speed of
+        SAT-based exact methods
+        (Section~\ref{sec:exp}).
+
+\end{enumerate}
+
+The remainder of the paper is organized as follows.
+Section~\ref{sec:pre} introduces transistor network synthesis and
+placement/routing background.
+Section~\ref{sec:method} presents our theoretical foundations and the
+\method{} architecture with three-phase training.
+Section~\ref{sec:exp} reports experimental results and ablations.
+Section~\ref{sec:con} concludes.

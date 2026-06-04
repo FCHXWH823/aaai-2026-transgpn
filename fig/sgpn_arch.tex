@@ -1,0 +1,63 @@
+% ── Figure: SGPN Architecture ─────────────────────────────────────────────
+\begin{tikzpicture}[
+    >=Stealth,
+    font=\small,
+    bigbox/.style = {draw, rounded corners=4pt, minimum width=7.6cm,
+                     minimum height=0.65cm, align=center},
+    head/.style   = {draw, rounded corners=3pt, minimum width=1.6cm,
+                     minimum height=0.85cm, align=center, fill=blue!8,
+                     font=\scriptsize},
+    mask/.style   = {draw, rounded corners=2pt, minimum width=1.55cm,
+                     minimum height=0.36cm, align=center, fill=orange!20,
+                     font=\scriptsize},
+    arr/.style    = {->, thick},
+    lbl/.style    = {font=\scriptsize, text=gray},
+]
+
+%% ── Input ─────────────────────────────────────────────────────────────────
+\node[bigbox, fill=green!8] (ug) at (0, 0)
+  {Unified Graph $\;\mathcal{G}_t = G_t \;\cup\; C_{\mathrm{SOP}}$};
+\node[lbl, left=0.15cm of ug] {input};
+
+%% ── MPNN ──────────────────────────────────────────────────────────────────
+\node[bigbox, fill=gray!10, below=0.42cm of ug] (mpnn)
+  {\textbf{MPNN} Backbone ($L$ layers)
+   $\quad\mathbf{h}_i\!\in\!\mathbb{R}^d,\;$
+   $\mathbf{g}\!\in\!\mathbb{R}^{2d}$};
+\draw[arr] (ug) -- (mpnn);
+\node[lbl, left=0.15cm of mpnn] {encode};
+
+%% ── Four heads ────────────────────────────────────────────────────────────
+\node[head, below=0.8cm of mpnn, xshift=-2.85cm] (h1)
+  {Head~1\\Node-1};
+\node[head, below=0.8cm of mpnn, xshift=-0.95cm] (h2)
+  {Head~2\\Node-2};
+\node[head, below=0.8cm of mpnn, xshift= 0.95cm] (h3)
+  {Head~3\\Variable};
+\node[head, below=0.8cm of mpnn, xshift= 2.85cm] (h4)
+  {Head~4\\Sign};
+
+\draw[arr] (mpnn.south) -- ++(0,-0.10) -| (h1.north);
+\draw[arr] (mpnn.south) -- ++(0,-0.10) -| (h2.north);
+\draw[arr] (mpnn.south) -- ++(0,-0.10) -| (h3.north);
+\draw[arr] (mpnn.south) -- ++(0,-0.10) -| (h4.north);
+\node[lbl, left=0.15cm of h1] {decode};
+
+%% ── Safety masks ──────────────────────────────────────────────────────────
+\node[mask, below=0.22cm of h1] (m1) {\textit{safety mask}};
+\node[mask, below=0.22cm of h2] (m2) {\textit{safety mask}};
+\node[mask, below=0.22cm of h3] (m3) {\textit{safety mask}};
+\node[mask, below=0.22cm of h4] (m4) {\textit{safety mask}};
+\draw[arr] (h1)--(m1); \draw[arr] (h2)--(m2);
+\draw[arr] (h3)--(m3); \draw[arr] (h4)--(m4);
+
+%% ── Action output ─────────────────────────────────────────────────────────
+\node[bigbox, fill=red!7, below=0.5cm of m2, xshift=0.95cm] (act)
+  {Action $(u^*,\, v^*,\, k^*,\, s^*)$: one transistor placement};
+\draw[arr] (m1.south) -- ++(0,-0.15) -| (act.north);
+\draw[arr] (m2.south) -- ++(0,-0.15) -| (act.north);
+\draw[arr] (m3.south) -- ++(0,-0.15) -| (act.north);
+\draw[arr] (m4.south) -- ++(0,-0.15) -| (act.north);
+\node[lbl, left=0.15cm of act] {output};
+
+\end{tikzpicture}

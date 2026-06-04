@@ -1,0 +1,31 @@
+\begin{abstract}
+Transistor network synthesis—finding a compact CMOS switching network that
+correctly implements a given Boolean function—is a central step in
+custom-cell design.
+Existing exact and SAT-based methods are powerful for small functions but scale
+poorly as the number of variables grows and cannot generalize across functions
+without re-solving from scratch.
+We present \method, a learning-based framework that casts transistor network
+synthesis as a sequential graph-generation Markov decision process (MDP) and
+trains a \sgpn (\SGPN) to solve it.
+The policy operates over a unified graph comprising both the partial synthesized
+network and a fixed SOP-based compensate network that encodes the target Boolean
+function, allowing the GNN backbone to reason jointly about coverage obligations
+and existing topology at every step.
+Training proceeds in three phases:
+Phase~1 performs supervised NLL pretraining on a dataset of known-optimal
+transistor networks to initialize the policy;
+Phase~2 applies PPO-based reinforcement learning with a GRPO group baseline and
+an adaptive self-tightening reward to push the policy toward minimum transistor
+count;
+Phase~3 extends RL to joint pull-down/pull-up network (PDN/PUN) synthesis
+with a physical placement reward derived from ASTRAN, a standard-cell layout
+tool, to optimize cell width (CPP) directly.
+On a benchmark of \TODO{N} Boolean functions with up to three variables,
+\method{} achieves \TODO{X\%} synthesis success rate and matches or improves upon
+the reference transistor count on \TODO{Y\%} of functions;
+physical-aware finetuning further reduces the ASTRAN placement objective
+by \TODO{Z\%} compared to the Phase~2 baseline,
+demonstrating that a single policy can jointly optimize logical correctness,
+transistor count, and physical layout quality.
+\end{abstract}

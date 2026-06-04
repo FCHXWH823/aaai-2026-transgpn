@@ -1,0 +1,176 @@
+\section{Experiments}
+\label{sec:exp}
+
+\subsection{Setup}
+
+\paragraph{Dataset.}
+\TODO{Describe how the dataset was generated: sweep over 3-variable Boolean
+functions, SAT-based minimum transistor count verification, etc.}
+Our dataset contains \TODO{N} Boolean functions of up to $N=3$ input variables.
+For each function, the minimum transistor count is determined by a SAT-based
+solver~\cite{muSTNet}, yielding ground-truth labels for pretraining and
+evaluation.
+The dataset is split into \TODO{X/Y/Z} train/validation/test functions.
+
+\paragraph{Implementation.}
+\method{} uses an MPNN backbone with $d=64$, $L=3$ layers, and MLP hidden
+dimension 128.
+Phase~1 runs for \TODO{} epochs (lr $10^{-3}$, batch 32).
+Phase~2 uses $K=8$ trajectories, lr $3\times10^{-5}$,
+$\varepsilon=0.2$, $\lambda_H=0.01$, sync interval $M=5$.
+Phase~3 initializes from the Phase~2 checkpoint, uses the same
+PPO hyperparameters, generates $K=8$ paired PDN+PUN trajectories per
+function, and evaluates complete pairs with ASTRAN (freePDK45, SA quality~1,
+weights $(3,4,1,4,2)$, 4 parallel workers).
+All experiments run on a single NVIDIA \TODO{GPU}.
+
+\paragraph{Baselines.}
+We compare against:
+\begin{itemize}[leftmargin=*, topsep=2pt, itemsep=0pt]
+  \item \textbf{MuSTNet}~\cite{muSTNet}: SAT-based exact synthesis.
+  \item \textbf{MiniTNtk}~\cite{miniTNtk}: heuristic transistor-network toolkit.
+  \item \textbf{MCTS-PTNS}~\cite{mctsptns}: Monte Carlo Tree Search synthesis.
+  \item \textbf{\method{} Phase~1}: NLL pretraining only.
+  \item \textbf{\method{} Phase~2}: transistor-count RL (single network).
+\end{itemize}
+For physical metrics (Phases~2--3), we generate the SPICE netlist for
+each synthesized PDN+PUN pair and evaluate it with ASTRAN using the same
+placement parameters to ensure a fair comparison.
+
+\paragraph{Metrics.}
+\textit{Logical metrics} (Phases 1--2):
+\begin{itemize}[leftmargin=*, topsep=2pt, itemsep=0pt]
+  \item \textbf{Success rate}: fraction of functions with a correct implementation.
+  \item \textbf{Optimality rate}: fraction matching the known minimum transistor count.
+  \item \textbf{Avg.\ transistors}: mean transistor count over correct solutions.
+\end{itemize}
+\textit{Physical metrics} (Phase 3):
+\begin{itemize}[leftmargin=*, topsep=2pt, itemsep=0pt]
+  \item \textbf{ASTRAN objective} $\Phi$ (Eq.~\ref{eq:phi}): weighted sum of
+        CPP, gate mismatches, WL, routing density, and diffusion cuts.
+  \item \textbf{CPP} (cell width): total poly columns used by the placed cell.
+  \item \textbf{Gate mismatches}: positions where P-row and N-row gate signals differ.
+  \item \textbf{Nr.\ Gaps}: number of diffusion cuts (Euler-path breaks).
+  \item \textbf{WL / Rt.\ Density}: wire length and peak routing congestion.
+\end{itemize}
+
+\subsection{Main Results}
+
+\TODO{Table 1: comparison with baselines across all test functions.}
+
+Table~\ref{tab:main} reports the main comparison.
+\method{} achieves a success rate of \TODO{X\%} and matches the minimum
+transistor count on \TODO{Y\%} of successfully synthesized functions,
+outperforming the heuristic baseline MiniTNtk and approaching the exact
+SAT-based MuSTNet.
+Unlike MuSTNet, \method{} requires no per-instance SAT invocation at inference
+and runs in \TODO{X ms} per function on average.
+
+\begin{table}[t]
+\centering
+\caption{Logical synthesis comparison (\TODO{N}-function test set).}
+\label{tab:main}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Method} & \textbf{Success (\%)} & \textbf{Optimality (\%)} & \textbf{Avg.\ T} & \textbf{Time (s)} \\
+\midrule
+MuSTNet~\cite{muSTNet}           & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
+MiniTNtk~\cite{miniTNtk}         & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
+MCTS-PTNS~\cite{mctsptns}        & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
+\method{} Phase~1                & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
+\method{} Phase~2 (ours)         & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Ablation Study}
+
+Table~\ref{tab:ablation} ablates the key design choices in Phase~2 training.
+
+\begin{table}[t]
+\centering
+\caption{Ablation on the XOR-3 function (20 trials per variant).}
+\label{tab:ablation}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Variant} & \textbf{Success (\%)} & \textbf{Avg.\ T} \\
+\midrule
+EMA baseline                  & \TODO{} & \TODO{} \\
+GRPO baseline (ours)          & \TODO{} & \TODO{} \\
+Fixed $t_{\mathrm{ref}}$      & \TODO{} & \TODO{} \\
+Adaptive $t^*$ reward (ours)  & \TODO{} & \TODO{} \\
+No entropy ($\lambda_H=0$)    & \TODO{} & \TODO{} \\
+Entropy $\lambda_H=0.01$ (ours) & \TODO{} & \TODO{} \\
+Full \method{}                & \TODO{} & \TODO{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Effect of GRPO baseline.}
+\TODO{Discuss: EMA baseline causes slow convergence because the baseline
+lags behind the policy. GRPO instantly adapts to the current batch.}
+
+\paragraph{Effect of adaptive reward.}
+\TODO{Discuss: once the policy finds a shorter circuit, the self-tightening
+target $T^*$ reduces reward for longer solutions, maintaining gradient signal
+toward the minimum even in batches where no new best is found.}
+
+\paragraph{Effect of entropy bonus.}
+\TODO{Discuss: without entropy, the policy mode-collapses to a single 9T
+solution and ppo\_loss goes to zero. With $\lambda_H=0.01$ the policy
+maintains diversity and eventually discovers 8T solutions.}
+
+\subsection{Phase 3: Physical-Aware Placement Results}
+\label{sec:physical_exp}
+
+\paragraph{Setup.}
+For each method, we generate the SPICE netlist for the best PDN+PUN pair
+found over 20 trials and evaluate it with ASTRAN (freePDK45, same placement
+parameters as training).
+The physical RL baseline starts from the Phase~2 checkpoint and is finetuned
+for \TODO{} epochs.
+
+\begin{table}[t]
+\centering
+\caption{Physical placement comparison on XOR-3 (20 generation trials).
+         $\Phi$ is the ASTRAN weighted objective (Eq.~\ref{eq:phi});
+         lower is better.}
+\label{tab:physical}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Method} & $\Phi$ & \textbf{CPP} & \textbf{GM} & \textbf{WL} & \textbf{Gaps} \\
+\midrule
+\method{} Phase~2 (no physical RL) & \TODO{} & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
+\method{} Phase~3 (ours)           & \TODO{} & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Physical RL reduces placement cost.}
+\TODO{Discuss: Phase~3 reduces $\Phi$ by X\% vs Phase~2 on XOR-3.
+Key gains: CPP drops from Y to Z (fewer poly columns), gate mismatches
+reduced to near-zero.  Nr.\ Gaps improvement quantifies better dual
+Euler path quality.  Concrete result from training log: best\_obj
+improved from 159 (Phase~2 baseline on NET.sp) to \TODO{}.}
+
+\paragraph{CPP and Width relationship.}
+For a cell with $T_{\mathrm{PDN}}$ and $T_{\mathrm{PUN}}$ transistors,
+cell width satisfies:
+\[
+  \mathrm{CPP} = 2 \cdot \max(T_{\mathrm{PDN}}, T_{\mathrm{PUN}}) + 1
+               + (\text{\# unique gap positions}).
+\]
+For our XOR-3 result (8+8 transistors), the minimum achievable CPP is 17
+(perfect dual Euler path, zero gaps); Phase~3 achieves CPP=18 with
+Nr.\ Gaps=2, just one column above the theoretical minimum.
+
+\subsection{Generalization to Unseen Functions}
+
+\TODO{Show that a policy trained on a subset of functions generalizes
+to held-out functions without retraining.}
+
+\subsection{Scaling Analysis}
+
+\TODO{Show how inference time scales with number of variables.
+Compare against SAT-based methods.}

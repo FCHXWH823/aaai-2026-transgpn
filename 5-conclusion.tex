@@ -1,0 +1,30 @@
+\section{Conclusion}
+\label{sec:con}
+
+We presented \method, a three-phase learning-based framework for transistor
+network synthesis.
+The key technical contributions are:
+(i) a unified graph representation combining the partial synthesized network
+with a fixed SOP compensate network, together with formal safety and
+correctness guarantees that make every generated trajectory valid by
+construction;
+(ii) a five-head factored policy with safety-masked actions operating on this
+unified graph;
+(iii) a two-phase logical training procedure (NLL pretraining + PPO with GRPO
+baseline, adaptive self-tightening reward, and entropy regularization) that
+converges toward minimum transistor count; and
+(iv) a physical-aware Phase~3 that jointly synthesizes PDN and PUN, evaluates
+each complete pair with ASTRAN, and uses the weighted placement objective
+$\Phi = w_c \cdot \mathrm{CPP} + w_m \cdot \mathrm{GM} + w_w \cdot \mathrm{WL} + w_d \cdot D + w_g \cdot \mathrm{Gaps}$
+directly as the RL reward, achieving physical quality improvement without
+separate post-synthesis optimization.
+
+Experiments demonstrate that a single learned policy generalizes across diverse
+Boolean functions, approaches exact SAT-based transistor count, and — through
+Phase~3 physical RL — produces PDN+PUN pairs with competitive ASTRAN placement
+objectives at a fraction of the per-instance cost of search-based methods.
+
+\paragraph{Future work.}
+Extending \method{} to four- and five-variable Boolean functions, incorporating
+transistor sizing into the policy, and closing the loop with full routing
+metrics (via ASTRAN compact and ILP reranking) are natural next steps.
