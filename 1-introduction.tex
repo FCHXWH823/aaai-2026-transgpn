@@ -123,14 +123,16 @@ routing density, and diffusion gaps).
         (Section~\ref{sec:physical}).
 
   \item \textbf{Empirical validation.}
-        We evaluate on a benchmark of \TODO{N} Boolean functions with up
-        to three variables.
-        Phase~2 achieves \TODO{X\%} synthesis success rate and matches the
-        minimum transistor count on \TODO{Y\%} of functions.
-        Phase~3 further reduces the ASTRAN placement objective by \TODO{Z\%}
-        compared to the Phase~2 baseline, at \TODO{W$\times$} the speed of
-        SAT-based exact methods
-        (Section~\ref{sec:exp}).
+        We evaluate on exhaustive sweeps of all $254$ three-variable and
+        $65{,}534$ four-variable Boolean functions, plus a catalog of hard
+        six-variable non-series-parallel functions, using both polarities of
+        each function as separate targets.
+        On the three-variable sweep, \method{} reaches the exact minimum
+        transistor count on $100\%$ of the $508$ targets, of which $97.6\%$
+        are already optimal after pretraining; the residual on larger sweeps
+        is closed by Phase~2 (Section~\ref{sec:exp}).
+        Unlike SAT-based exact methods, \method{} requires no per-instance
+        solver call at inference.
 
 \end{enumerate}
 

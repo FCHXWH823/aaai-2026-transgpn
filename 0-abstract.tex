@@ -21,11 +21,15 @@ count;
 Phase~3 extends RL to joint pull-down/pull-up network (PDN/PUN) synthesis
 with a physical placement reward derived from ASTRAN, a standard-cell layout
 tool, to optimize cell width (CPP) directly.
-On a benchmark of \TODO{N} Boolean functions with up to three variables,
-\method{} achieves \TODO{X\%} synthesis success rate and matches or improves upon
-the reference transistor count on \TODO{Y\%} of functions;
-physical-aware finetuning further reduces the ASTRAN placement objective
-by \TODO{Z\%} compared to the Phase~2 baseline,
-demonstrating that a single policy can jointly optimize logical correctness,
-transistor count, and physical layout quality.
+On an exhaustive benchmark of all $254$ three-variable Boolean functions
+($508$ pull-down and pull-up targets), \method{} attains a $100\%$ synthesis
+success rate and matches the exact minimum transistor count on $100\%$ of
+targets --- with $97.6\%$ already optimal from pretraining alone --- and the
+approach extends to the exhaustive four-variable sweep and to hard
+six-variable non-series-parallel functions.
+Phase~3 augments the reward with a physical placement objective derived from
+ASTRAN, a standard-cell layout tool, so that a single policy targets logical
+correctness, transistor count, and physical layout quality jointly.
+\TODO{Add the Phase-3 placement-objective reduction once the ASTRAN
+evaluation completes.}
 \end{abstract}

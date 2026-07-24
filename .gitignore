@@ -7,3 +7,10 @@
 *.log
 *.out
 *.synctex.gz
+
+# Downloaded AAAI author kit (third-party, bulky)
+authorkit/
+*.aux
+*.out
+*.bbl
+*.blg

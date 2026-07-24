@@ -1,0 +1,90 @@
+% ── Figure: worked examples for the theoretical results ───────────────────
+% Four small 2-variable switching networks illustrating, in order:
+%  (a) SOP correctness + completeness (XOR two-chain network)
+%  (b) monotonicity + incremental safety (masked shortcut)
+%  (c) dual equivalence (AND2: parallel PDN vs series PUN)
+%  (d) network reduction (a stray transistor that is free to delete)
+\begin{tikzpicture}[
+    font=\scriptsize,
+    >=Stealth,
+    rail/.style = {circle, draw, thick, minimum size=4.2mm, inner sep=0pt,
+                   font=\scriptsize\bfseries},
+    src/.style  = {rail, fill=red!12},
+    snk/.style  = {rail, fill=blue!12},
+    intn/.style = {circle, draw, minimum size=3.6mm, inner sep=0pt, fill=green!10},
+    tr/.style   = {draw, thick},
+    trlab/.style= {midway, font=\scriptsize, fill=white, inner sep=1pt},
+    dead/.style = {draw, thick, gray!55, dashed},
+    bad/.style  = {draw, very thick, red!75!black, densely dashed},
+    ttl/.style  = {font=\small\bfseries},
+    cptn/.style  = {font=\scriptsize\itshape, text=gray!60!black},
+]
+
+% ============ (a) XOR SOP network ============
+\begin{scope}[shift={(0,0)}]
+  \node[ttl] at (1.15,2.05) {(a) XOR SOP network};
+  \node[src] (aS) at (0,1.0)   {S};
+  \node[snk] (aT) at (2.3,1.0) {T};
+  \node[intn] (aa) at (1.15,1.7) {$a$};
+  \node[intn] (ab) at (1.15,0.3) {$b$};
+  % chain A: S -x1- a -!x2- T
+  \draw[tr] (aS) -- node[trlab]{$x_1$} (aa);
+  \draw[tr] (aa) -- node[trlab]{$\bar{x}_2$} (aT);
+  % chain B: S -!x1- b -x2- T
+  \draw[tr] (aS) -- node[trlab]{$\bar{x}_1$} (ab);
+  \draw[tr] (ab) -- node[trlab]{$x_2$} (aT);
+  \node[cptn, align=center] at (1.15,-0.35)
+    {two shared-rail chains; correct,\\ coverage-complete (Ex.~\ref{ex:sop},~\ref{ex:complete})};
+\end{scope}
+
+% ============ (b) masked shortcut ============
+\begin{scope}[shift={(4.6,0)}]
+  \node[ttl] at (1.15,2.05) {(b) Safety mask};
+  \node[src] (bS) at (0,1.0)   {S};
+  \node[snk] (bT) at (2.3,1.0) {T};
+  \node[intn] (bn) at (1.15,1.0) {$n$};
+  \draw[tr] (bS) -- node[trlab]{$x_1$} (bn);
+  \draw[tr] (bn) -- node[trlab]{$x_2$} (bT);
+  % forbidden shortcut S -x1- T (conducts under off-pattern 10)
+  \draw[bad] (bS) to[bend right=42] node[trlab, text=red!75!black]{$x_1$} (bT);
+  \node[cptn, align=center] at (1.15,-0.35)
+    {dashed edge $(\mathrm{S},\mathrm{T},x_1)$ is masked:\\ conducts under off-pattern $10$ (Ex.~\ref{ex:mono})};
+\end{scope}
+
+% ============ (c) AND2 dual: PDN vs PUN ============
+\begin{scope}[shift={(0,-3.3)}]
+  \node[ttl] at (1.15,2.05) {(c) AND2 CMOS dual};
+  % PDN: parallel x1 || x2 between GND and ZN
+  \node[src] (cG) at (0,1.35) {\tiny GND};
+  \node[snk] (cZ1) at (2.0,1.35) {\tiny ZN};
+  \draw[tr] (cG) to[bend left=32] node[trlab]{$x_1$} (cZ1);
+  \draw[tr] (cG) to[bend right=32] node[trlab]{$x_2$} (cZ1);
+  \node[cptn] at (1.0,0.72) {PDN: $x_1 \parallel x_2$ (NMOS)};
+  % PUN: series x1 - x2 between VDD and ZN
+  \node[src] (cV) at (0,0.15) {\tiny VDD};
+  \node[intn] (cm) at (1.0,0.15) {};
+  \node[snk] (cZ2) at (2.0,0.15) {\tiny ZN};
+  \draw[tr] (cV) -- node[trlab]{$x_1$} (cm);
+  \draw[tr] (cm) -- node[trlab]{$x_2$} (cZ2);
+  \node[cptn] at (1.0,-0.5) {PUN: $x_1$ series $x_2$ (PMOS)};
+  \node[cptn, align=center] at (1.0,-0.95) {duals; one policy (Ex.~\ref{ex:dual})};
+\end{scope}
+
+% ============ (d) redundant transistor ============
+\begin{scope}[shift={(4.6,-3.3)}]
+  \node[ttl] at (1.15,2.05) {(d) Free deletion};
+  \node[src] (dS) at (0,1.0)   {S};
+  \node[snk] (dT) at (2.3,1.0) {T};
+  \node[intn] (da) at (1.15,1.7) {$a$};
+  \node[intn] (db) at (1.15,0.3) {$b$};
+  \draw[tr] (dS) -- node[trlab]{$x_1$} (da);
+  \draw[tr] (da) -- node[trlab]{$\bar{x}_2$} (dT);
+  \draw[tr] (dS) -- node[trlab]{$\bar{x}_1$} (db);
+  \draw[tr] (db) -- node[trlab]{$x_2$} (dT);
+  % stray device a-b, structurally dead -> removed
+  \draw[dead] (da) -- node[trlab, text=gray!60!black]{$x_1$} (db);
+  \node[cptn, align=center] at (1.15,-0.35)
+    {greyed stray $(a,b,x_1)$ on no S--T path;\\ deletes with no safety recheck (Ex.~\ref{ex:reduction})};
+\end{scope}
+
+\end{tikzpicture}

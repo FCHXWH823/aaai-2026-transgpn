@@ -97,6 +97,43 @@ implementing $f(\lnot\mathbf{x})$ with on-patterns
 $= \{\lnot\pi : \pi \in \Pon\}$.
 \end{proof}
 
+\begin{figure}[t]
+\centering
+\resizebox{\columnwidth}{!}{\input{fig/theorem_examples}}
+\caption{Worked $2$-variable circuits for the theoretical results.
+(a) The XOR SOP network of Example~\ref{ex:sop}: two shared-rail chains,
+correct and coverage-complete, and reachable in any insertion order
+(Example~\ref{ex:complete}).
+(b) A safe series chain for $x_1x_2$; the dashed shortcut $(\mathrm{S},
+\mathrm{T},x_1)$ is rejected by the safety mask because it conducts under the
+off-pattern $10$ (Example~\ref{ex:mono}).
+(c) The AND2 cell decomposes into a parallel NMOS pull-down and a series PMOS
+pull-up --- duals synthesized by one policy (Example~\ref{ex:dual}).
+(d) A structurally dead transistor (grey) that is free to delete with no
+off-pattern recheck (Example~\ref{ex:reduction}).
+Circles marked S/T are the source/sink rails; small green nodes are internal.}
+\label{fig:examples}
+\end{figure}
+
+\begin{example}[Decomposing an AND2 cell]
+\label{ex:dual}
+Let $f = x_1 x_2$, so $\Pon=\{11\}$ and $\Poff=\{00,01,10\}$
+(Figure~\ref{fig:examples}(c)).
+By Proposition~\ref{prop:dual} the CMOS cell splits into two independent
+switching problems.
+The \emph{PDN} realizes $\lnot f$ with on-patterns $\Poff$: it must conduct
+whenever $x_1{=}0$ or $x_2{=}0$, which is the \emph{parallel} pair of NMOS
+switches $x_1 \,\|\, x_2$ between $\mathrm{GND}$ and $\mathrm{ZN}$ ---
+i.e.\ a NAND-style pull-down.
+The \emph{PUN} realizes $f(\lnot\mathbf{x})$ with on-patterns
+$\{\lnot 11\}=\{00\}$: it must conduct only when $x_1{=}0$ and $x_2{=}0$,
+which is the \emph{series} pair of PMOS switches $x_1$ then $x_2$ between
+$\mathrm{VDD}$ and $\mathrm{ZN}$.
+The two networks are duals (series $\leftrightarrow$ parallel) and are
+synthesized by the \emph{same} policy conditioned on their respective pattern
+sets, exactly as our per-target formulation exploits.
+\end{example}
+
 Proposition~\ref{prop:dual} has a key consequence for our framework:
 \emph{synthesizing a full CMOS cell is equivalent to independently solving
 two standard switching network synthesis problems} — one for PDN and one for PUN.

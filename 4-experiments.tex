@@ -4,25 +4,56 @@
 \subsection{Setup}
 
 \paragraph{Dataset.}
-\TODO{Describe how the dataset was generated: sweep over 3-variable Boolean
-functions, SAT-based minimum transistor count verification, etc.}
-Our dataset contains \TODO{N} Boolean functions of up to $N=3$ input variables.
-For each function, the minimum transistor count is determined by a SAT-based
-solver~\cite{muSTNet}, yielding ground-truth labels for pretraining and
-evaluation.
-The dataset is split into \TODO{X/Y/Z} train/validation/test functions.
+We evaluate on exhaustive SAT-based sweeps at three input widths.
+For $N=3$, the sweep covers all $254$ non-trivial functions; for $N=4$ it
+covers $65{,}534$ functions; and for $N=6$ we use a catalog of $53$
+non-series-parallel (NSP) functions, which are the hardest instances because
+they admit no series-parallel realization.
+Each sweep enumerates, per function, one synthesis attempt per transistor
+budget, recording the realized network when the budget is satisfiable; the
+smallest satisfiable budget is that function's exact optimum.
+Every function contributes \emph{two} synthesis targets: the pull-down
+network realizing $f$ and the pull-up network realizing $\neg f(\neg x)$.
+Reference counts for the pull-up target are obtained by matching the dual
+function $\neg f(\neg x)$ back to its own entry in the sweep.
+This yields $508$ targets at $N=3$ and $131{,}068$ at $N=4$.
+Because the sweeps are exhaustive, evaluation is against exact optima rather
+than a held-out split; we additionally freeze a random subset of $256$
+solved $4$-input targets as a fixed set for the Phase~3 comparison.
 
 \paragraph{Implementation.}
-\method{} uses an MPNN backbone with $d=64$, $L=3$ layers, and MLP hidden
-dimension 128.
-Phase~1 runs for \TODO{} epochs (lr $10^{-3}$, batch 32).
-Phase~2 uses $K=8$ trajectories, lr $3\times10^{-5}$,
-$\varepsilon=0.2$, $\lambda_H=0.01$, sync interval $M=5$.
-Phase~3 initializes from the Phase~2 checkpoint, uses the same
-PPO hyperparameters, generates $K=8$ paired PDN+PUN trajectories per
-function, and evaluates complete pairs with ASTRAN (freePDK45, SA quality~1,
-weights $(3,4,1,4,2)$, 4 parallel workers).
-All experiments run on a single NVIDIA \TODO{GPU}.
+\method{} uses an MPNN backbone with $d=128$, $L=3$ layers, and MLP hidden
+dimension $256$, followed by a self-attention block over the nodes of each
+graph before the policy heads.
+Phase~1 uses the path-order supervision of Section~\ref{par:order} with one
+implementation per function, trained for $200$ epochs with Adam
+(cosine-annealed lr $2\times10^{-3}\!\to\!10^{-4}$) and a $2\times$ weight on
+the Head-1 term.
+Phase~2 uses $K=16$ trajectories per update, lr $10^{-4}$,
+$\varepsilon=0.2$, $\lambda_H=0.05$, up to $200$ updates per target with
+early stopping when the exact optimum is reached, and two independent
+restarts from the pretrained checkpoint.
+Reported transistor counts are the reduced counts $T_{\mathrm{eff}}$ of
+Section~\ref{sec:reduction}.
+Phase~3 initializes from the Phase~2 checkpoint, generates paired PDN+PUN
+trajectories per function, and evaluates complete pairs with ASTRAN
+(freePDK45, SA quality~1, weights $(3,4,1,4,2)$).
+All experiments run on a single NVIDIA H100 GPU.
+
+\begin{table}[t]
+\centering
+\caption{Benchmark scale. Each function yields a PDN and a PUN target.}
+\label{tab:datasets}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Benchmark} & \textbf{Functions} & \textbf{Targets} & \textbf{Optimum} \\
+\midrule
+$N=3$ sweep      & $254$    & $508$     & $1$--$8$ \\
+$N=4$ sweep      & $65{,}534$ & $131{,}068$ & $4$--$12$ \\
+$N=6$ NSP        & $53$     & $53$      & $5$--$7$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \paragraph{Baselines.}
 We compare against:
@@ -56,70 +87,148 @@ placement parameters to ensure a fair comparison.
 
 \subsection{Main Results}
 
-\TODO{Table 1: comparison with baselines across all test functions.}
+Table~\ref{tab:main} reports optimality rates for the pretrained policy
+(Phase~1) and after transistor-count finetuning (Phase~2).
+On the exhaustive $3$-input sweep, \method{} attains the exact optimum on
+\textbf{all $508$ targets}.
+The decomposition is informative: the pretrained policy alone is already
+optimal on $97.6\%$ of targets at its first sampled evaluation, and Phase~2
+closes the remaining $12$ targets, each within $12$ updates.
+This indicates that when supervision is consistent and ordered along
+conduction paths, imitation alone recovers exact-optimal synthesis at this
+width, and reinforcement learning is needed only for a small residual.
 
-Table~\ref{tab:main} reports the main comparison.
-\method{} achieves a success rate of \TODO{X\%} and matches the minimum
-transistor count on \TODO{Y\%} of successfully synthesized functions,
-outperforming the heuristic baseline MiniTNtk and approaching the exact
-SAT-based MuSTNet.
-Unlike MuSTNet, \method{} requires no per-instance SAT invocation at inference
-and runs in \TODO{X ms} per function on average.
+At $N=4$ the residual is substantially larger and Phase~2 carries more of the
+load; optimization over the full sweep is ongoing and we report the rate over
+completed targets.
+At $N=6$ the two phases separate cleanly: the pretrained policy produces a
+\emph{correct} network for $50$ of $53$ NSP functions but at a mean reduced
+cost of $19.0$ transistors against optima near $7$, so completion is largely
+solved by pretraining while compaction is the task left to Phase~2.
 
 \begin{table}[t]
 \centering
-\caption{Logical synthesis comparison (\TODO{N}-function test set).}
+\caption{Optimality rate (fraction of targets reaching the exact SAT optimum).
+         $N{=}4$ is over completed targets; optimization is ongoing.}
 \label{tab:main}
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lcccc}
+\begin{tabular}{lccc}
 \toprule
-\textbf{Method} & \textbf{Success (\%)} & \textbf{Optimality (\%)} & \textbf{Avg.\ T} & \textbf{Time (s)} \\
+\textbf{Method} & \textbf{$N{=}3$ (508)} & \textbf{$N{=}4$} & \textbf{$N{=}6$ NSP} \\
 \midrule
-MuSTNet~\cite{muSTNet}           & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
-MiniTNtk~\cite{miniTNtk}         & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
-MCTS-PTNS~\cite{mctsptns}        & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
-\method{} Phase~1                & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
-\method{} Phase~2 (ours)         & \TODO{} & \TODO{} & \TODO{} & \TODO{} \\
+MuSTNet~\cite{muSTNet}     & $100$ & $100$ & $100$ \\
+MiniTNtk~\cite{miniTNtk}   & \TODO{} & \TODO{} & \TODO{} \\
+MCTS-PTNS~\cite{mctsptns}  & \TODO{} & \TODO{} & \TODO{} \\
+\method{} Phase~1          & $97.6$ & \TODO{} & $0$ \\
+\method{} Phase~2 (ours)   & $\mathbf{100}$ & $88^{\dagger}$ & \TODO{} \\
 \bottomrule
 \end{tabular}}
 \end{table}
 
-\subsection{Ablation Study}
+\noindent
+MuSTNet is exact by construction and therefore attains $100\%$ optimality;
+its cost is a per-instance SAT invocation, whereas \method{} amortizes
+synthesis into a learned policy and requires no solver at inference.
+\TODO{Fill MiniTNtk / MCTS-PTNS rows and add an inference-time column once
+those baselines are run on the same sweeps.}
 
-Table~\ref{tab:ablation} ablates the key design choices in Phase~2 training.
+\subsection{Ablation: Supervision Order Dominates Architecture}
+\label{sec:ablation_order}
+
+Our central design claim is that \emph{how} a reference network is linearized
+into a supervision sequence matters more than model capacity.
+Table~\ref{tab:ablation_order} varies the two factors independently at
+$N=4$.  Under index/breadth-first order, Head-1 accuracy saturates near
+$0.54$--$0.63$ regardless of capacity; under the path order of
+Section~\ref{par:order} it exceeds $0.88$ with the \emph{same} encoders.
+The ordering is worth roughly $+30$ points, while doubling width and adding
+attention is worth $4$--$8$.
 
 \begin{table}[t]
 \centering
-\caption{Ablation on the XOR-3 function (20 trials per variant).}
-\label{tab:ablation}
+\caption{Head-1 (source-selection) accuracy at $N{=}4$:
+         architecture $\times$ supervision order.}
+\label{tab:ablation_order}
 \begin{tabular}{lcc}
 \toprule
-\textbf{Variant} & \textbf{Success (\%)} & \textbf{Avg.\ T} \\
+\textbf{Architecture} & \textbf{Index/BFS order} & \textbf{Path order} \\
 \midrule
-EMA baseline                  & \TODO{} & \TODO{} \\
-GRPO baseline (ours)          & \TODO{} & \TODO{} \\
-Fixed $t_{\mathrm{ref}}$      & \TODO{} & \TODO{} \\
-Adaptive $t^*$ reward (ours)  & \TODO{} & \TODO{} \\
-No entropy ($\lambda_H=0$)    & \TODO{} & \TODO{} \\
-Entropy $\lambda_H=0.01$ (ours) & \TODO{} & \TODO{} \\
-Full \method{}                & \TODO{} & \TODO{} \\
+$d{=}64$, MLP $128$               & $0.543$ & $0.886$ \\
+$d{=}128$, MLP $256$, attention   & $0.625$ & $\mathbf{0.932}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Effect of GRPO baseline.}
-\TODO{Discuss: EMA baseline causes slow convergence because the baseline
-lags behind the policy. GRPO instantly adapts to the current batch.}
+The effect is not specific to $N=4$: at $N=6$ the same substitution raises
+Head-1 accuracy from $0.505$ to $0.91$.
+We attribute this to the structural argument of Section~\ref{par:order}: under
+the path order the source is determined by the graph during walk extensions,
+whereas under an index order it is a convention the model must memorize.
 
-\paragraph{Effect of adaptive reward.}
-\TODO{Discuss: once the policy finds a shorter circuit, the self-tightening
-target $T^*$ reduces reward for longer solutions, maintaining gradient signal
-toward the minimum even in batches where no new best is found.}
+\paragraph{Effect of label consistency.}
+Retaining every implementation of a function introduces conflicting targets
+for identical states.  At $N=6$, restricting supervision to one
+implementation per function raises Head-1 accuracy from $0.443$ to $0.505$;
+in the multi-implementation setting the loss also degrades over training
+rather than continuing to descend, consistent with an irreducible
+label-conflict floor.
 
-\paragraph{Effect of entropy bonus.}
-\TODO{Discuss: without entropy, the policy mode-collapses to a single 9T
-solution and ppo\_loss goes to zero. With $\lambda_H=0.01$ the policy
-maintains diversity and eventually discovers 8T solutions.}
+\paragraph{Effect of network reduction.}
+Because redundant devices are removable in post-processing
+(Lemma~\ref{lem:deletion}), scoring unreduced networks penalizes the policy
+for structure a downstream pass deletes.  On the $N=6$ NSP benchmark, mean
+generated size falls from $41.4$ (unreduced) to $40.1$ (structural reduction
+only) to $19.0$ (full irredundant reduction), and one function reaches its
+exact optimum under reduction alone.
+
+\paragraph{Effect of the search budget.}
+Completion depends strongly on the rollout step budget: at $N=6$, raising the
+budget from $40$ to $80$ placements raises the fraction of functions for
+which a correct network is ever found from $13/36$ to $30/36$, while mean size
+grows, confirming that under a tight budget the policy fails to complete
+rather than failing to compact.
+
+\paragraph{Planned Phase-2 ablations.}
+\TODO{Add EMA vs.\ GRPO baseline, fixed vs.\ adaptive $t^*$, and entropy
+$\lambda_H \in \{0, 0.05\}$ rows; each requires a matched multi-seed run
+(see Section~\ref{sec:planned}).}
+
+\subsection{Analysis}
+\label{sec:analysis}
+
+\paragraph{Top-$k$ behaviour of the pretrained policy.}
+Although top-$1$ Head-1 accuracy is $0.50$ on $6$-input states, the correct
+node lies in the top $3$ candidates $78\%$ of the time and in the top $5$
+$89\%$ of the time (mean rank $1.6$ of ${\sim}64$).
+Since Phase~2 \emph{samples} from the policy rather than taking its argmax,
+top-$k$ mass — not top-$1$ accuracy — is the relevant measure of prior
+quality, which explains why a policy with $0.50$ top-$1$ accuracy still
+finetunes effectively.
+
+\paragraph{Where source selection fails.}
+Accuracy is $0.62$ on small partial networks but falls to $0.36$ on
+mid-sized ones, and is markedly lower when the target is an interior node
+($0.37$) than a rail ($0.66$), with the model over-predicting rails.
+Errors are largely not near-misses and the model is confidently wrong rather
+than undecided, indicating a learning rather than a tie-breaking failure and
+motivating the node-feature extension in Section~\ref{sec:planned}.
+
+\paragraph{Representational ceiling.}
+A Weisfeiler--Leman refinement over the unified graph states assigns every
+candidate node a distinct colour within two rounds, so the achievable Head-1
+accuracy is $1.0$.
+The observed gap is therefore an optimization and inductive-bias limitation,
+not a limitation of the state encoding.
+
+\paragraph{Cost of the reward variants.}
+All Phase-2 reward variants cost essentially the same per update
+($\approx 1.6$\,s under matched conditions), because rollout generation
+dominates while the baseline and exploration terms are comparatively free.
+Throughput is instead governed by device sharing: per-update time grows from
+$1.9$\,s with one process per GPU to $20$\,s at five and $49$\,s at sixteen,
+since each generation step issues many small kernels that serialize.
+Wall-clock comparisons between variants are therefore only meaningful at
+matched concurrency.
 
 \subsection{Phase 3: Physical-Aware Placement Results}
 \label{sec:physical_exp}
@@ -130,6 +239,14 @@ found over 20 trials and evaluate it with ASTRAN (freePDK45, same placement
 parameters as training).
 The physical RL baseline starts from the Phase~2 checkpoint and is finetuned
 for \TODO{} epochs.
+Unlike Phase~2, where each network is a separate target, the physical
+objective is only defined once \emph{both} the pull-down and pull-up networks
+are complete, since ASTRAN places the combined cell; a Phase~3 target is
+therefore a \emph{function}, and the reward is assigned jointly to the two
+trajectories.
+\TODO{Phase~3 numbers pending: results below are to be filled once the
+physical evaluation runs over the frozen $256$-target $4$-input set and the
+full $3$-input set.}
 
 \begin{table}[t]
 \centering
@@ -167,10 +284,50 @@ Nr.\ Gaps=2, just one column above the theoretical minimum.
 
 \subsection{Generalization to Unseen Functions}
 
-\TODO{Show that a policy trained on a subset of functions generalizes
-to held-out functions without retraining.}
+\TODO{Train Phase~1 on a subset of the $N{=}4$ sweep and evaluate on the
+held-out remainder without retraining. Note that the main results above are
+evaluated against exhaustive optima rather than a held-out split, so this
+experiment is what isolates generalization from memorization.}
 
 \subsection{Scaling Analysis}
 
-\TODO{Show how inference time scales with number of variables.
-Compare against SAT-based methods.}
+\TODO{Report inference time per function as a function of $N$ against the
+SAT baseline. The relevant claim is amortization: \method{} pays a one-time
+training cost and a fixed sampling cost per function, whereas exact methods
+pay a per-instance solver cost that grows with $N$.}
+
+\subsection{Planned Experiments}
+\label{sec:planned}
+
+The following studies are required to complete the evaluation.
+
+\paragraph{Necessity of pretraining.}
+Running Phase~2 from a randomly initialized policy, versus from the Phase~1
+checkpoint, isolates the contribution of imitation pretraining and validates
+the two-phase design.
+
+\paragraph{Variance across seeds.}
+Per-target outcomes on hard instances are stochastic: in matched single runs
+we have observed reward variants exchange wins on the \emph{same} instance.
+All variant comparisons will therefore be repeated across seeds and reported
+with dispersion rather than as single runs; the numbers in
+Section~\ref{sec:ablation_order}, which concern pretraining accuracy over
+tens of thousands of targets, are not affected by this.
+
+\paragraph{Exploration-mechanism ablation.}
+For instances where the policy converges one transistor above the optimum,
+we add novelty and record-beating bonuses, down-weight self-imitation while
+the record is suboptimal, and re-heat the sampling temperature on stalls.
+A leave-one-out study is needed to attribute the gain to individual
+mechanisms rather than to the bundle.
+
+\paragraph{Node features.}
+The failure analysis in Section~\ref{sec:analysis} localizes errors to
+interior nodes of mid-sized networks.  Supplying per-node structural and
+functional descriptors --- distance to the rails, degree, and the number of
+uncovered on-patterns routed through each node --- targets exactly this
+deficit.
+
+\paragraph{Remaining baselines.}
+MiniTNtk and MCTS-PTNS must be run on the same sweeps, together with the
+naive sum-of-products series-parallel construction as a no-learning floor.

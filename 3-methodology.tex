@@ -35,6 +35,26 @@ $e$ alone suffices.
 This reduces safety verification per candidate from $O(|E|)$ to
 $O(|\Poff|\cdot|V|)$, independent of circuit size.
 
+\begin{example}[Monotonicity and incremental safety]
+\label{ex:mono}
+Take $f = x_1 x_2$ over two variables, so the single off-pattern set is
+$\Poff=\{00,01,10\}$ (all inputs where $f=0$).
+Suppose the partial network already contains the series pair (Figure~\ref{fig:examples}(b))
+$\SRC \!\xrightarrow{x_1}\! n \!\xrightarrow{x_2}\! \SNK$.
+This network is \emph{safe}: under $00$, $01$, and $10$ at least one of
+$x_1,x_2$ is $0$, so the chain is broken and no $\SRC\!\to\!\SNK$ path
+conducts.
+Now consider adding the shortcut $e=(\SRC,\SNK,x_1)$.
+By monotonicity (Thm.~\ref{thm:mono}) every previously conducting path still
+conducts, so we need only test whether $e$ \emph{by itself} creates an
+off-pattern path (Cor.~\ref{cor:safety}): under $10\in\Poff$, $x_1=1$, so $e$
+alone connects $\SRC$ to $\SNK$ and conducts illegally --- $e$ is therefore
+masked out.  Adding instead $e'=(\SRC,\SNK,x_1 x_2)$ would be admissible,
+since $x_1 x_2 = 0$ on all of $\Poff$.
+Crucially, we reach this verdict by checking only the one new edge against
+$|\Poff|=3$ patterns, never re-examining the existing chain.
+\end{example}
+
 \begin{theorem}[SOP Network Correctness]
 \label{thm:sop}
 Let $G_{\mathrm{SOP}}(f)$ be the series-parallel network with one
@@ -48,6 +68,25 @@ forming a complete path.
 they differ at some bit $j^*$, so the $j^*$-th transistor does not conduct
 under $\pi'$, breaking every path.
 \end{proof}
+
+\begin{example}[SOP network for a 2-variable function]
+\label{ex:sop}
+For $f = x_1 \bar{x}_2 + \bar{x}_1 x_2$ (XOR), the on-set is
+$\Pon = \{10, 01\}$.
+$G_{\mathrm{SOP}}(f)$ places one $2$-transistor chain per on-pattern, both
+between the shared rails (Figure~\ref{fig:examples}(a)): chain~A is
+$\SRC\!\xrightarrow{x_1}\!a\!\xrightarrow{\bar{x}_2}\!\SNK$ and chain~B is
+$\SRC\!\xrightarrow{\bar{x}_1}\!b\!\xrightarrow{x_2}\!\SNK$.
+Under $10$, chain~A conducts ($x_1{=}1,\bar{x}_2{=}1$) and $f=1$; under $01$,
+chain~B conducts and $f=1$.
+Under the off-patterns $00$ and $11$, each chain has exactly one broken
+transistor (e.g.\ under $11$, $\bar{x}_2{=}0$ breaks A and $\bar{x}_1{=}0$
+breaks B), so nothing conducts and $f=0$.
+This $4$-transistor network is correct but not minimal --- XOR admits a
+$3$-transistor bridge realization; the SOP form is the coverage-complete
+starting point that the policy learns to compact, and it also serves as the
+fixed \emph{compensate} network $C_f$ that conditions the state.
+\end{example}
 
 \begin{theorem}[Completeness of Safety-Masked Search]
 \label{thm:complete}
@@ -74,6 +113,23 @@ It only forbids transistors whose addition immediately creates an off-pattern
 path — those that cannot appear in any correct, safe network.
 The policy therefore searches the full space of valid partial sub-networks;
 no optimal solution is made unreachable by the masking procedure.
+
+\begin{example}[The mask never blocks a valid target]
+\label{ex:complete}
+Let $G^*$ be the correct XOR network of Example~\ref{ex:sop} with edges
+$\{e_1,e_2\}$ (chain~A) and $\{e_3,e_4\}$ (chain~B), and consider building it
+in the ``interleaved'' order $e_1,e_3,e_2,e_4$ that never completes a chain
+until the very end.
+At each prefix the partial network is a subgraph of $G^*$; by monotonicity any
+off-pattern path in a prefix would also exist in $G^*$, which is safe, so no
+prefix ever conducts illegally and the mask rejects none of the four
+placements.
+The same holds for all $4! = 24$ orderings.
+Thus even though our path-order supervision (Section~\ref{par:order}) presents
+one specific linearization, completeness guarantees the policy is \emph{free}
+to discover $G^*$ through any order at generation time --- the mask constrains
+only correctness, never reachability.
+\end{example}
 
 \subsection{MDP Formulation}
 \label{sec:mdp}
@@ -231,22 +287,26 @@ and makes large-batch PPO training feasible on a single GPU.
 \toprule
 \textbf{Hyperparameter}          & \textbf{Value} \\
 \midrule
-MPNN hidden dim $d$              & 64 \\
+MPNN hidden dim $d$              & 128 \\
 MPNN layers $L$                  & 3 \\
-Head MLP hidden dim              & 128 \\
-Node feature dim $d_\mathrm{node}$ & \TODO{} \\
-Edge feature dim $d_\mathrm{edge}$ & \TODO{} \\
+Head MLP hidden dim              & 256 \\
+Post-MPNN self-attention         & yes (4 heads) \\
+Node feature dim $d_\mathrm{node}$ & 4 \\
+Edge feature dim $d_\mathrm{edge}$ & $N+2$ \ ($5/6/8$ for $N{=}3/4/6$) \\
 \midrule
-Phase 1 lr                       & $10^{-3}$ \\
-Phase 1 batch size               & 32 \\
-Phase 1 epochs                   & \TODO{} \\
+Phase 1 lr (cosine)              & $2\times10^{-3}\!\to\!10^{-4}$ \\
+Phase 1 batch size               & 512 \\
+Phase 1 epochs                   & 200 \\
+Head-1 loss weight               & 2 \\
 \midrule
-Phase 2 lr                       & $3 \times 10^{-5}$ \\
-Phase 2 trajectories $K$         & 8 \\
+Phase 2 lr                       & $10^{-4}$ \\
+Phase 2 trajectories $K$         & 16 \\
 PPO clip $\varepsilon$           & 0.2 \\
-Entropy coeff $\lambda_H$        & 0.01 \\
-Agent sync interval $M$          & 5 \\
-Max steps $T_{\max}$             & 30 \\
+Entropy coeff $\lambda_H$        & 0.05 \\
+Adaptive-anchor $\beta$          & 0.3 \\
+Restarts                         & 2 \\
+Max updates per target           & 200 \\
+Max steps $T_{\max}$             & 20 \\
 \midrule
 Phase 3 lr                       & $3 \times 10^{-5}$ \\
 Phase 3 pairs $K$                & 8 \\
@@ -263,6 +323,45 @@ We collect a dataset $\mathcal{D}$ of known-optimal transistor networks,
 each paired with its target Boolean function.
 For each network, we replay the transistor-placement sequence and record
 the $(u, v, k, s)$ labels at every step.
+
+\paragraph{Construction order (supervision linearization).}
+\label{par:order}
+A transistor network is an \emph{unordered} set of devices, so replaying it
+as a sequence requires choosing a linearization
+$e_1,\dots,e_{|E^*|}$, and that choice defines the learning problem.
+A natural default is to order devices by node index (equivalently, by a
+breadth-first traversal from the rails), but this makes the source label an
+artifact of the indexing convention rather than of the circuit.
+We instead use a \emph{path (ear) decomposition}: the sequence is emitted as
+successive walks, where the first walk starts at \textsc{src} and extends
+through unvisited nodes until it closes into already-visited structure
+(preferentially at \textsc{snk}), and each later walk (an \emph{ear}) starts
+at an already-visited node and extends until it reconnects.
+Every emitted action therefore satisfies the invariant that $u$ is already
+present in the partial network, so the walk direction fixes the orientation.
+
+This ordering aligns supervision with the semantics of the task: because
+conduction is achieved only when a \textsc{src}$\to$\textsc{snk} path
+\emph{closes}, decomposing the target into completed paths makes each label
+continue a coherent sub-goal.  It also changes the difficulty profile.
+During a walk extension the partial network has exactly one dangling
+endpoint, and that endpoint \emph{is} the next source, so Head~1 becomes
+structurally determined rather than conventional; the residual difficulty
+concentrates at \emph{ear starts}, where the model must choose which
+existing node to branch from --- precisely the structure-sharing decision
+that governs compactness.  Section~\ref{sec:exp} shows this single change
+raises source-selection accuracy by roughly $30$ points, far more than any
+architectural variation we tested.
+
+\paragraph{Label consistency.}
+A Boolean function typically admits many distinct optimal or near-optimal
+networks.  Retaining several implementations of the \emph{same} function
+pairs identical states with conflicting targets, giving the objective an
+irreducible floor.  We therefore retain a single implementation per
+function (the most compact one), which both removes the conflict and makes
+the supervision consistent with the downstream objective of minimizing
+transistor count.
+
 The pretraining objective is the mean negative log-likelihood:
 \[
   \mathcal{L}_{\mathrm{NLL}}
@@ -362,6 +461,58 @@ objective $\Phi$ directly as the reward, optimising physical layout quality.}
 \EndFor
 \end{algorithmic}
 \end{algorithm}
+
+\subsection{Network Reduction}
+\label{sec:reduction}
+
+A generated network may contain transistors that do not affect the function
+it computes, and counting them overstates its cost.  We therefore reduce
+every network before scoring it, using two nested notions.
+A transistor is \emph{structurally dead} if it lies on no simple
+\textsc{src}$\to$\textsc{snk} path; such devices can never carry current and
+are removed by keeping only those edges whose biconnected block lies on the
+block-cut-tree path between the rails.  More generally, a network is
+\emph{irredundant} if no single transistor can be deleted while still
+covering every on-pattern; we delete such transistors greedily to a fixed
+point.
+
+\begin{lemma}[Deletion preserves safety]
+\label{lem:deletion}
+Let $G' \subseteq G$ be obtained by deleting transistors.  If $G$ conducts
+under no off-pattern, then neither does $G'$.
+\end{lemma}
+\vspace{-4pt}
+\begin{proof}
+Every path in $G'$ is a path in $G$; a violating path in $G'$ would violate
+$G$.
+\end{proof}
+
+Lemma~\ref{lem:deletion} is what makes reduction cheap: deletion can only
+\emph{reduce} conduction, so no off-pattern re-verification is needed and it
+suffices to re-check on-pattern coverage.  We write $T_{\mathrm{eff}}$ for
+the reduced size and use it both when reporting results and inside the
+reward, so the policy is never penalized for redundancy that a downstream
+pass would remove.  This matters quantitatively: on the $6$-input benchmark
+of Section~\ref{sec:exp}, reduction lowers mean generated size from $41.4$
+to $19.0$ transistors.
+
+\begin{example}[A redundant transistor is free to delete]
+\label{ex:reduction}
+Suppose the policy synthesizes the XOR pull-down of Example~\ref{ex:sop}
+(chains A and B, $4$ transistors) but, mid-construction, also emits a stray
+device $s=(a,b,x_1)$ linking the two internal nodes (Figure~\ref{fig:examples}(d)).
+Deleting $s$ yields $G'\subseteq G$.
+By Lemma~\ref{lem:deletion} no off-pattern check is needed --- $G'$ inherits
+safety automatically --- so we only re-verify coverage: chains A and B still
+carry the on-patterns $10$ and $01$, hence $G'$ computes the same function.
+Because $s$ lay on no \textsc{src}$\to$\textsc{snk} path it is even
+structurally dead, and the reported cost is $T_{\mathrm{eff}}=4$ rather than
+$5$.
+Scoring the unreduced $5$-transistor network would have penalized the policy
+for a device any layout tool discards; on the $6$-input NSP benchmark this
+accounting difference is the gap between a mean of $41.4$ and $19.0$
+transistors.
+\end{example}
 
 \subsection{Phase 3: Physical-Aware Joint PDN+PUN Synthesis}
 \label{sec:physical}
