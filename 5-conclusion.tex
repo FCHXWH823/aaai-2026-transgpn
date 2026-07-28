@@ -1,30 +1,18 @@
 \section{Conclusion}
 \label{sec:con}
 
-We presented \method, a three-phase learning-based framework for transistor
-network synthesis.
-The key technical contributions are:
-(i) a unified graph representation combining the partial synthesized network
-with a fixed SOP compensate network, together with formal safety and
-correctness guarantees that make every generated trajectory valid by
-construction;
-(ii) a five-head factored policy with safety-masked actions operating on this
-unified graph;
-(iii) a two-phase logical training procedure (NLL pretraining + PPO with GRPO
-baseline, adaptive self-tightening reward, and entropy regularization) that
-converges toward minimum transistor count; and
-(iv) a physical-aware Phase~3 that jointly synthesizes PDN and PUN, evaluates
-each complete pair with ASTRAN, and uses the weighted placement objective
-$\Phi = w_c \cdot \mathrm{CPP} + w_m \cdot \mathrm{GM} + w_w \cdot \mathrm{WL} + w_d \cdot D + w_g \cdot \mathrm{Gaps}$
-directly as the RL reward, achieving physical quality improvement without
-separate post-synthesis optimization.
-
-Experiments demonstrate that a single learned policy generalizes across diverse
-Boolean functions, approaches exact SAT-based transistor count, and — through
-Phase~3 physical RL — produces PDN+PUN pairs with competitive ASTRAN placement
-objectives at a fraction of the per-instance cost of search-based methods.
-
-\paragraph{Future work.}
-Extending \method{} to four- and five-variable Boolean functions, incorporating
-transistor sizing into the policy, and closing the loop with full routing
-metrics (via ASTRAN compact and ILP reranking) are natural next steps.
+We presented \method, a learning-based framework that casts transistor
+network synthesis as a safety-masked sequential graph-generation MDP.
+A single five-head policy operates on a unified graph that fuses the partial
+network with a fixed SOP encoding of the target, placing transistors under
+per-head masks that make every trajectory correct and safe by construction.
+Three-phase training---NLL pretraining, PPO with a GRPO baseline and a
+self-tightening reward, and a physical-aware phase that rewards the joint
+PDN/PUN cell by its ASTRAN placement cost---drives the same policy from
+imitation toward minimum transistor count and layout quality.
+On the exhaustive three-variable sweep the policy matches the exact SAT
+optimum on all $508$ targets, extends to four- and six-variable functions,
+and lowers mean placement cost by $18\%$/$15\%$ over count-optimal cells---all
+without a per-instance solver call at inference.
+Incorporating transistor sizing and closing the loop with full routing
+metrics (via ASTRAN compaction and ILP reranking) are natural next steps.
