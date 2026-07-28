@@ -60,7 +60,6 @@ We compare against:
 \begin{itemize}[leftmargin=*, topsep=2pt, itemsep=0pt]
   \item \textbf{MiniTNtk}~\cite{miniTNtk}: exact SAT-based count
         minimization (source of our reference optima).
-  \item \textbf{MuSTNet}~\cite{muSTNet}: exact SAT synthesis, placement-aware.
   \item \textbf{\method{} Phase~1}: NLL pretraining only.
   \item \textbf{\method{} Phase~2}: transistor-count RL (single network).
 \end{itemize}
@@ -116,7 +115,6 @@ solved by pretraining while compaction is the task left to Phase~2.
 \toprule
 \textbf{Method} & \textbf{$N{=}3$ (508)} & \textbf{$N{=}4$} & \textbf{$N{=}6$ NSP} \\
 \midrule
-MuSTNet~\cite{muSTNet}     & $100$ & $100$ & $100$ \\
 MiniTNtk~\cite{miniTNtk}   & $100$ & $100$ & $100$ \\
 \method{} Phase~1          & $97.6$ & $49.2$ & $0$ \\
 \method{} Phase~2 (ours)   & $\mathbf{100}$ & $88^{\dagger}$ & $24.5^{\dagger}$ \\
@@ -125,8 +123,8 @@ MiniTNtk~\cite{miniTNtk}   & $100$ & $100$ & $100$ \\
 \end{table}
 
 \noindent
-MuSTNet and MiniTNtk are exact SAT-based solvers that supply the reference
-optima and therefore attain $100\%$ by construction; their cost is a
+MiniTNtk is an exact SAT-based solver that supplies the reference
+optima and therefore attains $100\%$ by construction; its cost is a
 per-instance solver invocation, whereas \method{} amortizes synthesis into a
 learned policy and needs no solver at inference, matching the exact optimum on
 all $508$ three-input targets.
