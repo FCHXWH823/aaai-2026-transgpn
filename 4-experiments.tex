@@ -150,6 +150,7 @@ attention is worth $4$--$8$.
 \caption{Head-1 (source-selection) accuracy at $N{=}4$:
          architecture $\times$ supervision order.}
 \label{tab:ablation_order}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lcc}
 \toprule
 \textbf{Architecture} & \textbf{Index/BFS order} & \textbf{Path order} \\
@@ -157,7 +158,7 @@ attention is worth $4$--$8$.
 $d{=}64$, MLP $128$               & $0.543$ & $0.886$ \\
 $d{=}128$, MLP $256$, attention   & $0.625$ & $\mathbf{0.932}$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 The effect is not specific to $N=4$: at $N=6$ the same substitution raises
