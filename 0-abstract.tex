@@ -2,9 +2,9 @@
 Transistor network synthesis, finding a compact CMOS switching network that
 correctly implements a given Boolean function, is a central step in
 custom-cell design.
-Exact SAT solvers and MCTS-based search treat every function as an independent
-search problem: runtime grows exponentially in the number of variables, and
-nothing learned on one function transfers to the next.
+Exact SAT-based solvers treat every function as an independent search problem:
+runtime grows exponentially in the number of variables, and nothing learned on
+one function transfers to the next.
 We present \method, which casts synthesis as a sequential graph-generation
 Markov decision process and trains a \sgpn (\SGPN) to solve it.
 The policy acts on a unified graph that fuses the partial network with a fixed

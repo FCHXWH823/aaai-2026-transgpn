@@ -17,10 +17,7 @@ minimum-transistor solutions but solve each function from scratch,
 with no reuse across instances.
 Runtime grows exponentially with the number of variables, and the methods
 offer no generalization to unseen functions.
-MCTS-based approaches~\cite{mctsptns} improve scalability but are still
-per-instance search procedures that cannot internalize cross-function
-structural patterns.
-Neither family of methods \emph{learns} a generalizable synthesis policy,
+None of these methods \emph{learns} a generalizable synthesis policy,
 so every new function incurs the full cost of a fresh optimization.
 
 \paragraph{Our approach: learned sequential graph generation.}

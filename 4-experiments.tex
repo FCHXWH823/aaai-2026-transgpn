@@ -58,9 +58,10 @@ $N=6$ NSP        & $53$     & $53$      & $5$--$7$ \\
 \paragraph{Baselines.}
 We compare against:
 \begin{itemize}[leftmargin=*, topsep=2pt, itemsep=0pt]
-  \item \textbf{MuSTNet}~\cite{muSTNet}: SAT-based exact synthesis.
-  \item \textbf{MiniTNtk}~\cite{miniTNtk}: heuristic transistor-network toolkit.
-  \item \textbf{MCTS-PTNS}~\cite{mctsptns}: Monte Carlo Tree Search synthesis.
+  \item \textbf{MiniTNtk}~\cite{miniTNtk}: SAT-based exact
+        transistor-count minimization (the source of our reference optima).
+  \item \textbf{MuSTNet}~\cite{muSTNet}: SAT-based exact synthesis with
+        placement awareness.
   \item \textbf{\method{} Phase~1}: NLL pretraining only.
   \item \textbf{\method{} Phase~2}: transistor-count RL (single network).
 \end{itemize}
