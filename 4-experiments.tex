@@ -58,10 +58,9 @@ $N=6$ NSP        & $53$     & $53$      & $5$--$7$ \\
 \paragraph{Baselines.}
 We compare against:
 \begin{itemize}[leftmargin=*, topsep=2pt, itemsep=0pt]
-  \item \textbf{MiniTNtk}~\cite{miniTNtk}: SAT-based exact
-        transistor-count minimization (the source of our reference optima).
-  \item \textbf{MuSTNet}~\cite{muSTNet}: SAT-based exact synthesis with
-        placement awareness.
+  \item \textbf{MiniTNtk}~\cite{miniTNtk}: exact SAT-based count
+        minimization (source of our reference optima).
+  \item \textbf{MuSTNet}~\cite{muSTNet}: exact SAT synthesis, placement-aware.
   \item \textbf{\method{} Phase~1}: NLL pretraining only.
   \item \textbf{\method{} Phase~2}: transistor-count RL (single network).
 \end{itemize}
@@ -261,8 +260,8 @@ MiniTNtk leaves on the table.
 \toprule
 \textbf{Method} & \textbf{Mean $\Phi_{\mathrm{plc}}$} \\
 \midrule
-MiniTNtk~\cite{miniTNtk} (count-optimal) & $12.74$ \\
-\method{} Phase~3 (ours)                 & $\mathbf{10.44}$ \\
+MiniTNtk (count-optimal) & $12.74$ \\
+\method{} Phase~3 (ours) & $\mathbf{10.44}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
