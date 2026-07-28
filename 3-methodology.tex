@@ -1,473 +1,804 @@
 \section{The \method{} Framework with \sgpn}
 \label{sec:method}
 
-% ─────────────────────────────────────────────────────────────────────────────
 \subsection{Theoretical Foundations}
 \label{sec:theory}
 
-We establish four results that jointly guarantee both the
-\emph{soundness} (every generated circuit is valid) and
-\emph{completeness} (every valid circuit is reachable) of our
-safety-masked sequential generation framework.
-Worked $2$-variable examples illustrating each result, and all proofs, are
-given in the supplementary material (App.~A--B).
+We establish five results that jointly guarantee that safety-masked sequential
+generation is \emph{sound} (every network it produces is valid) and
+\emph{complete} (every valid network remains reachable).
+Write $\mathrm{Paths}(G)$ for the set of pairs $(\pi, P)$ such that path $P$
+conducts $\SRC \to \SNK$ in $G$ under pattern $\pi$.
+Proofs and worked $2$-variable examples are given in the supplementary
+material (App.~A--B).
 
 \begin{theorem}[Monotonicity of Conducting Paths]
 \label{thm:mono}
 For any transistor network $G$ and any transistor $e \notin E(G)$,
 $\mathrm{Paths}(G) \subseteq \mathrm{Paths}(G \cup \{e\})$.
 \end{theorem}
+
+\noindent
+Monotonicity has two consequences, one for each direction of edge
+modification.
+
 \begin{corollary}[Incremental Safety Checking]
 \label{cor:safety}
-If $G$ is safe, then $G \cup \{(u,v,\ell)\}$ is safe iff $(u,v,\ell)$ alone
-does not create a new $\SRC \to \SNK$ path under any $\pi \in \Poff$.
+If $G$ is safe for $g$, then $G \cup \{(u,v,\ell)\}$ is safe for $g$ iff
+$(u,v,\ell)$ alone creates no $\SRC \to \SNK$ path under any $\pi \in \Poff$.
 \end{corollary}
-This reduces safety verification per candidate from $O(|E|)$ to
-$O(|\Poff|\cdot|V|)$, independent of circuit size.
+
+\begin{lemma}[Deletion Preserves Safety]
+\label{lem:deletion}
+If $G' \subseteq G$ and $G$ is safe for $g$, then $G'$ is safe for $g$.
+\end{lemma}
+
+\noindent
+Corollary~\ref{cor:safety} reduces the per-candidate safety test from
+$O(|E|)$ to $O(|\Poff| \cdot |V|)$, independent of how many transistors are
+already placed.  This is what makes the safety mask affordable at every step. Lemma~\ref{lem:deletion} is the mirror statement: deletion can only
+lower conduction, so the network reduction of Section~\ref{sec:mdp} need
+re-verify coverage only, never safety.
 
 \begin{theorem}[SOP Network Correctness]
 \label{thm:sop}
-Let $G_{\mathrm{SOP}}(f)$ be the series-parallel network with one
-$N$-transistor series chain per $\pi \in \Pon$, all sharing $\SRC$/$\SNK$.
-Then $G_{\mathrm{SOP}}(f)$ correctly implements $f$.
+Let $G_{\mathrm{SOP}}(g)$ be the series-parallel network with one
+$N$-transistor series chain per $\pi \in \Pon$, all sharing $\SRC$ and $\SNK$.
+Then $G_{\mathrm{SOP}}(g)$ correctly implements $g$.
 \end{theorem}
+
+\noindent
+Theorem~\ref{thm:sop} both guarantees that the feasible set of Problem~A is
+non-empty and supplies the fixed \emph{compensate network} that conditions our
+state representation (Section~\ref{sec:mdp}).
+
 \begin{theorem}[Completeness of Safety-Masked Search]
 \label{thm:complete}
-For any valid network $G^*$ implementing $f$, every permutation of
-$E(G^*)$ is a valid trajectory under the safety mask.
-Equivalently, the safety-masked MDP reaches $G^*$ from the empty graph
-in $|E(G^*)|$ steps following any edge ordering.
+For any valid $G^*$ implementing $g$, every permutation of $E(G^*)$ is a valid
+trajectory under the safety mask.
 \end{theorem}
-\paragraph{Implication for search completeness.}
-Theorem~\ref{thm:complete} is the key correctness guarantee of our framework:
-\emph{the safety mask never prunes any valid solution}.
-It only forbids transistors whose addition immediately creates an off-pattern
-path — those that cannot appear in any correct, safe network.
-The policy therefore searches the full space of valid partial sub-networks;
-no optimal solution is made unreachable by the masking procedure.
 
-\subsection{MDP Formulation}
+\noindent
+The mask therefore never prunes a valid solution.  It forbids only
+transistors that immediately create an off-pattern path, and such a transistor
+cannot appear in any correct network; the policy searches the full space of
+valid partial sub-networks.
+
+
+\subsection{MDP and Unified Graph State}
 \label{sec:mdp}
 
 \paragraph{State.}
-The state at step $t$ is $\mathcal{G}_t = G_t \cup C$, where $G_t$ is
-the partial synthesized network and $C = G_{\mathrm{SOP}}(f)$ is the
-fixed compensate network from Theorem~\ref{thm:sop}.
-The two share only $\SRC$ and $\SNK$.
+The state at step $t$ is the \emph{unified graph}
+$\mathcal{G}_t = G_t \cup C$, where $G_t = (V_t, E_t)$ is the partial
+synthesized network and $C = G_{\mathrm{SOP}}(g)$ is the fixed compensate
+network of Theorem~\ref{thm:sop}, held constant throughout the episode.
+The two components share only $\SRC$ and $\SNK$; all internal nodes are
+disjoint.
+This gives the GNN simultaneous access to the topology built so far and to the
+full logical specification of $g$, so the policy can reason jointly about what
+exists and which coverage obligations remain.
+Nodes carry their type ($\SRC$, $\SNK$, $G$-internal, $C$-internal), their
+degree in $G_t$ and in $C$ separately, and a coverage indicator; edges carry
+component membership, variable index, and polarity (dimensions in App.~C).
+The node space is extended to $V_t^+ = V_t \cup \{v_{\mathrm{new}}\}$ by a
+single learnable embedding $\mathbf{e}_{\mathrm{new}} \in \mathbb{R}^d$, which
+lets the policy open a fresh internal node at any step without a separate
+node-count decision and keeps the action space shape independent of how many
+nodes exist.
 
-\paragraph{Action.}
-Action $a_t = (u,v,\ell)$ adds one transistor.
-Two masks apply: (i) \textbf{reachability mask} on $u$ prunes structurally
-disconnected nodes; (ii) \textbf{safety mask} on $(u,v,\ell)$ forbids
-transistors creating $\Poff$-paths (Corollary~\ref{cor:safety}).
-By Theorem~\ref{thm:complete}, the safety mask is complete.
+\paragraph{Action and masks.}
+An action $a_t = (u, v, \ell)$ adds one transistor, where the literal
+$\ell = (k, s)$ is given by a variable index $k$ and a polarity $s$.
+Two masks apply.
+The \textbf{reachability mask} prunes nodes $u$ that are structurally
+disconnected, and the \textbf{safety mask} forbids any $(u, v, \ell)$ that
+creates a $\Poff$-path (Corollary~\ref{cor:safety}).
+By Theorem~\ref{thm:complete} the safety mask is complete, so masking removes
+no reachable solution.
+
+
+\paragraph{Termination.}
+Because safety is an invariant of every masked trajectory, coverage is the
+only remaining condition for correctness: an episode terminates successfully
+as soon as $G_t$ covers $g$, at which point $G_t$ correctly implements $g$ by
+construction.  Episodes that have not covered $g$ within a budget of
+$T_{\max}$ placements terminate as incomplete.
+
+\paragraph{Network reduction.}
+\label{sec:reduction}
+A terminal network may contain devices that do not affect the function it
+computes, and counting them overstates its cost.
+A transistor is \emph{structurally dead} if it lies on no simple
+$\SRC \to \SNK$ path; such devices carry no current and are removed by keeping
+only edges whose biconnected block lies on the block-cut-tree path between the
+rails.  More generally, a network is \emph{irredundant} if no single
+transistor can be deleted while still covering every on-pattern, and we delete
+greedily to a fixed point.
+By Lemma~\ref{lem:deletion} neither step can introduce an off-pattern path, so
+only coverage is re-verified.
+We write $T_{\mathrm{eff}}$ for the reduced size and use it both in the reward
+and when reporting results, so the policy is never penalized for redundancy a
+downstream pass would remove.  The effect is large: on the $6$-input NSP
+benchmark of Section~\ref{sec:exp}, reduction lowers mean generated size from
+$41.4$ to $19.0$ transistors.
 
 \paragraph{Reward.}
-Terminal reward only (no per-step penalty):
+The reward is terminal, undiscounted, and identical at every step of the
+trajectory:
 \begin{equation}
   r = \begin{cases}
-    T^*(f)/T   & \text{Phase 2: complete network, } T \text{ transistors}\\
-    \Phi^*(f)/\Phi & \text{Phase 3: complete PDN+PUN pair}\\
-    0          & \text{incomplete.}
+    T^*(g) / T_{\mathrm{eff}} & \text{Phase 2, complete network}\\
+    \Phi^*(f) / \Phi          & \text{Phase 3, complete PDN+PUN pair}\\
+    0                         & \text{incomplete,}
   \end{cases}
   \label{eq:reward}
 \end{equation}
-$T^*(f)$ and $\Phi^*(f)$ are self-tightening best values found so far for $f$.
+where $T^*(g)$ and $\Phi^*(f)$ are the best values found so far for that
+target.  $T^*(g)$ is initialized by the first complete network found for $g$. This is an \emph{adaptive self-tightening} baseline: the standard
+rises automatically whenever the policy discovers a better solution.
 
-% ─────────────────────────────────────────────────────────────────────────────
-\subsection{Unified Graph State Representation}
 
-At each step $t$, the policy observes the unified graph
-$\mathcal{G}_t = G_t \cup C$, where:
-\begin{itemize}[leftmargin=*, topsep=1pt, itemsep=0pt]
-  \item $G_t = (V_t, E_t)$ is the \emph{partial synthesized network}
-        built so far (edges are placed transistors with literal labels).
-  \item $C = G_{\mathrm{SOP}}(f)$ is the \emph{fixed compensate network}
-        (Theorem~\ref{thm:sop}), kept constant across all steps of the episode.
-\end{itemize}
-The two components share only $\SRC$ and $\SNK$; all internal nodes
-are disjoint.
-This unified representation gives the GNN simultaneous access to
-the current circuit topology ($G_t$) and the full logical specification
-of $f$ ($C$), enabling the policy to reason jointly about what has
-been built and what coverage obligations remain.
 
-\paragraph{Node and edge features.}
-Each node $v \in \mathcal{G}_t$ carries a feature vector encoding:
-node type ($\SRC$, $\SNK$, $G$-internal, $C$-internal),
-connectivity degree in $G_t$ and in $C$ separately,
-and a coverage indicator (whether $v$ lies on a chain for an
-already-covered on-pattern).
-Each edge $(u, v, \ell) \in E_t \cup E_C$ carries a feature vector
-encoding: component membership ($G$ vs.\ $C$), variable index,
-and polarity.
-Node feature dimension $d_\mathrm{node}$ and edge feature
-dimension $d_\mathrm{edge}$ are given in the supplementary (App.~C).
-
-\paragraph{Virtual new-node embedding.}
-The node space is extended to $V_t^+ = V_t \cup \{v_\mathrm{new}\}$
-by appending a single learnable embedding $\mathbf{e}_\mathrm{new} \in \mathbb{R}^d$
-for the virtual new-node option.
-This allows the policy to propose a fresh internal node at any step
-without a separate node-count decision, keeping the action space
-consistent regardless of how many nodes have been created so far.
-
-\subsection{\sgpn: Five-Head Factored Policy}
+\subsection{\sgpn: Factored Policy}
+\label{sec:sgpn}
 
 \begin{figure}[t]
 \centering
 \input{fig/sgpn_arch}
-\caption{Architecture of the \sgpn (\SGPN).
-The unified graph $\mathcal{G}_t = G_t \cup C_{\mathrm{SOP}}$ is encoded
-by a shared MPNN backbone; four factored heads with per-head safety masks
-decode the transistor-placement action $(u^*,v^*,k^*,s^*)$.}
+\caption{The \sgpn (\SGPN).  A shared MPNN backbone encodes the unified graph
+$\mathcal{G}_t = G_t \cup C_{\mathrm{SOP}}$; four factored heads with per-head
+safety masks decode the transistor placement $(u^*, v^*, k^*, s^*)$.}
 \label{fig:sgpn}
 \end{figure}
 
-The \SGPN uses an MPNN backbone~\cite{gilmer2017mpnn} with $L$ message-passing
-layers and hidden dimension $d$ to compute node and graph-level features from
-$\mathcal{G}_t$.
-Let $\mathbf{h}_i \in \mathbb{R}^d$ be the node feature for node $i$
-and $\mathbf{g} \in \mathbb{R}^{2d}$ the graph-level summary.
-Four specialized MLP heads decode the transistor-placement action from these
-features, each operating over a different sub-decision of the factored action
-space.
-All four heads share the same MPNN forward pass; safety masks are applied
-independently within each head.
-
-\paragraph{Head~1: Node-1 (source node).}
-Scores each $G$-node $u \in V_t^+$ as the source of the new transistor:
-\[
-  s_u = \mathrm{MLP}_1([\mathbf{h}_u \| \mathbf{g}]).
-\]
-Logits are masked to allow only nodes in the reachability set.
-
-\paragraph{Head~2: Node-2 (drain node).}
-Conditioned on the sampled source $u^*$, scores each node $v \in V_t^+$,
-$v \neq u^*$:
-\[
-  s_v = \mathrm{MLP}_2([\mathbf{h}_{u^*} \| \mathbf{h}_v \| \mathbf{g}]).
-\]
-Logits are masked to exclude nodes that have no safe literal for any
-$(u^*, v, \ell)$ (precomputed BFS safety check).
-
-\paragraph{Head~3: Variable index.}
-Given the sampled edge $(u^*, v^*)$, selects the control variable:
-\[
-  \mathbf{s}_{\mathrm{var}} = \mathrm{MLP}_3([\mathbf{h}_{u^*} \| \mathbf{h}_{v^*}])
-  \in \mathbb{R}^{N_{\mathrm{var}}}.
-\]
-Logits are safety-masked: only variables with at least one safe polarity
-for $(u^*, v^*)$ are valid.
-
-\paragraph{Head~4: Polarity (sign).}
-Selects positive or negative literal for the chosen variable:
-\[
-  \mathbf{s}_{\mathrm{sgn}} = \mathrm{MLP}_4([\mathbf{h}_{u^*} \| \mathbf{h}_{v^*}])
-  \in \mathbb{R}^{2}.
-\]
-Logits are safety-masked per the chosen variable.
-
-\paragraph{Factored log-probability.}
-The log-probability of placing transistor $(u, v, k, s)$ factorizes as:
+The \SGPN encodes $\mathcal{G}_t$ with an MPNN backbone~\cite{gilmer2017mpnn}
+of $L$ message-passing layers and hidden dimension $d$, followed by a
+self-attention block over the nodes of each graph, yielding node features
+$\mathbf{h}_i \in \mathbb{R}^d$ and a graph summary
+$\mathbf{g} \in \mathbb{R}^{2d}$.
+Four MLP heads decode the action sequentially, each conditioned on the
+choices already sampled:
+\begin{align*}
+  s_u                       &= \mathrm{MLP}_1([\mathbf{h}_u \,\|\, \mathbf{g}]), \\
+  s_v                       &= \mathrm{MLP}_2([\mathbf{h}_{u^*} \,\|\, \mathbf{h}_v \,\|\, \mathbf{g}]), \\
+  \mathbf{s}_{\mathrm{var}} &= \mathrm{MLP}_3([\mathbf{h}_{u^*} \,\|\, \mathbf{h}_{v^*}]), \\
+  \mathbf{s}_{\mathrm{sgn}} &= \mathrm{MLP}_4([\mathbf{h}_{u^*} \,\|\, \mathbf{h}_{v^*}]).
+\end{align*}
+Head~1 scores every $u \in V_t^+$ as the first endpoint and is masked to the
+reachability set; Head~2 scores each $v \neq u^*$ and is masked to exclude
+nodes admitting no safe literal for $(u^*, v)$; Heads~3 and~4 share their
+input and select the control variable and its polarity, masked to the
+variables and signs that keep $(u^*, v^*, \ell)$ safe.
+The four decisions factor as
 \begin{equation}
-  \log \pi(a \mid \mathcal{G}_t)
-  = \underbrace{\log p_1(u)}_{\text{Head 1}}
-  + \underbrace{\log p_2(v \mid u)}_{\text{Head 2}}
-  + \underbrace{\log p_3(k \mid u,v)}_{\text{Head 3}}
-  + \underbrace{\log p_4(s \mid u,v,k)}_{\text{Head 4}},
-  \label{eq:logp}
+\begin{aligned}
+  &\log \pi(a \mid \mathcal{G}_t) = \log p_1(u) + \log p_2(v \mid u) \\
+  &\qquad + \log p_3(k \mid u,v) + \log p_4(s \mid u,v,k),
+\end{aligned}
+\label{eq:logp}
 \end{equation}
-where all probabilities are masked softmax over safe candidates.
+where $p_j$ is the masked softmax of Head~$j$ over its safe candidates.
 By Corollary~\ref{cor:safety}, every action sampled from this distribution
-maintains the safety invariant; no post-hoc filtering is required.
+preserves the safety invariant, so no post-hoc filtering is required.
 
 \paragraph{Batched forward pass.}
-During PPO training, $K$ trajectories are collected per function per update
-step, each of length up to $T_{\max}$.
-Naively, this requires $O(K \cdot T_{\max})$ separate MPNN forward passes.
-Instead, all step graphs across all trajectories and all functions in the
-mini-batch are packed into a single \texttt{PackedGraph} and processed with
-\emph{one} MPNN call.
-Per-step node features are then sliced from the shared output tensor for
-the head MLPs.
-This reduces the dominant computation cost by $K \cdot T_{\max}\times$
-and makes large-batch PPO training feasible on a single GPU.
+A trajectory of length $T$ under $K$ rollouts would naively need
+$O(K \cdot T_{\max})$ separate MPNN calls.
+Instead we pack every step graph across all trajectories and all functions in
+the mini-batch into a single \texttt{PackedGraph} and encode them with
+\emph{one} MPNN forward pass, slicing per-step node features from the shared
+output for the head MLPs.
+This applies to both pretraining and PPO, and is what makes large-batch
+training feasible on a single GPU.
+
+
 
 \subsection{Phase 1: NLL Pretraining}
+\label{sec:pretrain}
 
-We collect a dataset $\mathcal{D}$ of known-optimal transistor networks,
-each paired with its target Boolean function.
-For each network, we replay the transistor-placement sequence and record
-the $(u, v, k, s)$ labels at every step.
+We collect a dataset $\mathcal{D}$ of known-optimal transistor networks, each
+paired with its target function, and replay every network as a sequence of
+placements to obtain per-step labels $(u, v, k, s)$.
 
-\paragraph{Construction order (supervision linearization).}
+\paragraph{Construction order.}
 \label{par:order}
-A transistor network is an \emph{unordered} set of devices, so replaying it
-as a sequence requires choosing a linearization
-$e_1,\dots,e_{|E^*|}$, and that choice defines the learning problem.
-A natural default is to order devices by node index (equivalently, by a
-breadth-first traversal from the rails), but this makes the source label an
-artifact of the indexing convention rather than of the circuit.
+A transistor network is an \emph{unordered} set of devices, so replaying it as
+a sequence requires choosing a linearization $e_1, \dots, e_{|E^*|}$, and that
+choice defines the learning problem.
+The natural default is to order devices by node index, equivalently by a
+breadth-first traversal from the rails, but this makes the first-endpoint
+label an artifact of the indexing convention rather than of the circuit.
 We instead use a \emph{path (ear) decomposition}: the sequence is emitted as
-successive walks, where the first walk starts at \textsc{src} and extends
-through unvisited nodes until it closes into already-visited structure
-(preferentially at \textsc{snk}), and each later walk (an \emph{ear}) starts
-at an already-visited node and extends until it reconnects.
-Every emitted action therefore satisfies the invariant that $u$ is already
-present in the partial network, so the walk direction fixes the orientation.
+successive walks, where the first walk starts at $\SRC$ and extends through
+unvisited nodes until it closes into already-visited structure, preferentially
+at $\SNK$, and each later walk (an \emph{ear}) starts at an already-visited
+node and extends until it reconnects.
+Every emitted action then satisfies the invariant that $u$ is already present
+in the partial network, so the walk direction fixes the orientation.
 
-This ordering aligns supervision with the semantics of the task: because
-conduction is achieved only when a \textsc{src}$\to$\textsc{snk} path
-\emph{closes}, decomposing the target into completed paths makes each label
-continue a coherent sub-goal.  It also changes the difficulty profile.
-During a walk extension the partial network has exactly one dangling
-endpoint, and that endpoint \emph{is} the next source, so Head~1 becomes
-structurally determined rather than conventional; the residual difficulty
-concentrates at \emph{ear starts}, where the model must choose which
-existing node to branch from --- precisely the structure-sharing decision
-that governs compactness.  Section~\ref{sec:exp} shows this single change
-raises source-selection accuracy by roughly $30$ points, far more than any
-architectural variation we tested.
+This aligns supervision with the semantics of the task.  Conduction is
+achieved only when a $\SRC \to \SNK$ path \emph{closes}, so decomposing the
+target into completed paths makes each label continue a coherent sub-goal.
+It also changes the difficulty profile: during a walk extension the partial
+network has exactly one dangling endpoint, and that endpoint \emph{is} the
+next $u$, so Head~1 becomes structurally determined rather than conventional.
+The residual difficulty concentrates at \emph{ear starts}, where the model
+must choose which existing node to branch from.  That is precisely the
+structure-sharing decision governing compactness.
+Section~\ref{sec:exp} shows this single change raises source-selection
+accuracy by roughly $30$ points, far more than any architectural variation we
+tested.
 
 \paragraph{Label consistency.}
-A Boolean function typically admits many distinct optimal or near-optimal
-networks.  Retaining several implementations of the \emph{same} function
-pairs identical states with conflicting targets, giving the objective an
-irreducible floor.  We therefore retain a single implementation per
-function (the most compact one), which both removes the conflict and makes
-the supervision consistent with the downstream objective of minimizing
+A function typically admits many optimal or near-optimal networks, and
+retaining several implementations of the \emph{same} function pairs identical
+states with conflicting targets, giving the objective an irreducible floor.
+We therefore keep a single implementation per function, the most compact one,
+which removes the conflict and matches the downstream objective of minimizing
 transistor count.
 
-The pretraining objective is the mean negative log-likelihood:
+The objective is the mean negative log-likelihood of the reference actions,
 \[
   \mathcal{L}_{\mathrm{NLL}}
-  = -\frac{1}{|\mathcal{D}|} \sum_{(G^*, f) \in \mathcal{D}}
+  = -\frac{1}{|\mathcal{D}|} \sum_{(G^*, g) \in \mathcal{D}}
     \sum_{t=1}^{|E^*|} \log \pi(a_t^* \mid \mathcal{G}_{t-1}),
 \]
-where $a_t^*$ is the ground-truth transistor at step $t$.
-The unified graph $\mathcal{G}_{t-1}$ is constructed from the partial
-prefix $G_{t-1}^*$ and the fixed compensate network $C_f$.
-Pretraining is batched via \texttt{PackedGraph} (all samples in a mini-batch
-share a single MPNN forward pass) and trained with Adam until convergence.
+where $\mathcal{G}_{t-1}$ is built from the prefix $G_{t-1}^*$ and the fixed
+compensate network $C_g$.  We train with Adam until convergence.
 
 \subsection{Phase 2: PPO Finetuning}
 \label{sec:rl}
 
-After pretraining, we finetune with off-policy PPO.
-A frozen copy of the current model (\emph{agent}) generates trajectories;
-the live model recomputes log-probabilities for the PPO surrogate loss.
-
-\paragraph{Reward design.}
-We use a purely terminal reward with no per-step penalty.
-Let $T$ be the number of transistors placed and $T^*$ the best transistor
-count found so far for this function (\emph{adaptive self-tightening target}):
-\[
-  r = \begin{cases} T^*/T & \text{if complete,} \\ 0 & \text{otherwise.} \end{cases}
-\]
-Once the policy discovers a shorter circuit, $T^*$ updates automatically,
-so subsequent solutions that are longer receive a reduced reward.
-Each step in the trajectory receives the same scalar $r$ (no discounting).
+We finetune the pretrained policy with PPO.  A frozen behaviour policy
+$\pi_{\mathrm{old}}$ generates trajectories and the live policy recomputes
+log-probabilities for the clipped surrogate loss.  We resynchronize
+$\pi_{\mathrm{old}} \leftarrow \pi_\theta$ every $M$ updates, which keeps the
+importance ratio $\pi / \pi_{\mathrm{old}}$ within a controlled range.
 
 \paragraph{GRPO baseline.}
-For each function in the batch, we sample $K$ trajectories in parallel.
-The advantage for each trajectory is normalized within the group:
+The reward is the terminal, undiscounted $r = T^*(g)/T_{\mathrm{eff}}$ of
+Eq.~\ref{eq:reward}.  For each function we sample $K$ trajectories and
+normalize the advantage within the group,
 \[
   \hat{A}_k = \frac{r_k - \bar{r}}{\sigma_r + \varepsilon},
-  \qquad
-  \bar{r} = \frac{1}{K}\sum_{k=1}^K r_k,\quad
-  \sigma_r = \sqrt{\frac{1}{K}\sum_{k=1}^K (r_k - \bar{r})^2}.
 \]
-This group-relative policy optimization (GRPO)~\cite{grpo} baseline
-eliminates EMA lag and gives a strong positive signal to any trajectory
-shorter than its group average without requiring a value network.
+where $\bar{r}$ and $\sigma_r$ are the mean and standard deviation of
+$\{r_k\}_{k=1}^K$.  This group-relative baseline~\cite{grpo} needs no value
+network and gives a positive signal to any trajectory shorter than its group
+average.
 
 \paragraph{Entropy bonus.}
-To prevent mode collapse (where all $K$ trajectories converge to the same
-solution), we add an entropy regularization term to the PPO loss:
-\[
-  \mathcal{L} = \mathcal{L}_{\mathrm{PPO}} - \lambda_H \cdot \bar{H},
-\]
-where $\bar{H}$ is the mean per-step policy entropy across all four heads
-and $\lambda_H$ is a tunable coefficient (default 0.01).
-The entropy bonus maintains exploration, ensuring the policy continues to
-occasionally sample shorter-than-current-best circuits.
-
-\paragraph{Batched MPNN forward.}
-To reduce wall-clock time, all trajectory steps across all $K$ trajectories
-and all functions in the batch are packed into a single \texttt{PackedGraph}
-and processed with one MPNN forward pass.
-Subsequent head MLPs slice per-step node features from the shared output.
-This replaces $O(K \cdot T_{\max})$ sequential forward passes with~1.
-
-\paragraph{Agent synchronization.}
-The frozen agent is re-synchronized to the live model every $M$ PPO steps
-to keep the importance-sampling ratio $\pi/\pi_{\mathrm{old}}$ within a
-controlled range.
-
-\begin{figure*}[t]
-\centering
-\input{fig/training_flow}
-\caption{Three-phase training pipeline of \method.
-Phase~1 initialises the \SGPN by NLL imitation on known-optimal circuits.
-Phase~2 finetunes toward minimum transistor count via PPO with adaptive
-reward $r = T^*(f)/T$ and GRPO baseline.
-Phase~3 jointly synthesises PDN and PUN and uses the ASTRAN placement
-objective $\Phi$ directly as the reward, optimising physical layout quality.}
-\label{fig:training}
-\end{figure*}
-
-\begin{algorithm}[t]
-\caption{\method{} / \SGPN Training (Phases 1--2)}
-\label{alg:train}
-\begin{algorithmic}[1]
-\Require Dataset $\mathcal{D}$, function list $\mathcal{F}$,
-         hyperparameters $K, M, \lambda_H, \varepsilon_{\mathrm{clip}}$
-\State Pretrain policy $\pi_\theta$ by NLL on $\mathcal{D}$ (Phase 1)
-\State Initialize frozen agent $\pi_{\mathrm{old}} \leftarrow \pi_\theta$
-\For{each epoch}
-  \State Sample batch of functions $\mathcal{B} \subseteq \mathcal{F}$
-  \For{each $f \in \mathcal{B}$}
-    \State Generate $K$ trajectories using $\pi_{\mathrm{old}}$
-    \State Update $T^*(f)$ if shorter complete circuit found
-    \State Compute rewards $\{r_k\}$ and GRPO advantages $\{\hat{A}_k\}$
-  \EndFor
-  \State Compute batched PPO + entropy loss
-  \State Update $\theta$ via Adam
-  \If{step $\equiv 0 \pmod{M}$} $\pi_{\mathrm{old}} \leftarrow \pi_\theta$ \EndIf
-\EndFor
-\end{algorithmic}
-\end{algorithm}
-
-\subsection{Network Reduction}
-\label{sec:reduction}
-
-A generated network may contain transistors that do not affect the function
-it computes, and counting them overstates its cost.  We therefore reduce
-every network before scoring it, using two nested notions.
-A transistor is \emph{structurally dead} if it lies on no simple
-\textsc{src}$\to$\textsc{snk} path; such devices can never carry current and
-are removed by keeping only those edges whose biconnected block lies on the
-block-cut-tree path between the rails.  More generally, a network is
-\emph{irredundant} if no single transistor can be deleted while still
-covering every on-pattern; we delete such transistors greedily to a fixed
-point.
-
-\begin{lemma}[Deletion preserves safety]
-\label{lem:deletion}
-Let $G' \subseteq G$ be obtained by deleting transistors.  If $G$ conducts
-under no off-pattern, then neither does $G'$.
-\end{lemma}
-Lemma~\ref{lem:deletion} is what makes reduction cheap: deletion can only
-\emph{reduce} conduction, so no off-pattern re-verification is needed and it
-suffices to re-check on-pattern coverage.  We write $T_{\mathrm{eff}}$ for
-the reduced size and use it both when reporting results and inside the
-reward, so the policy is never penalized for redundancy that a downstream
-pass would remove.  This matters quantitatively: on the $6$-input NSP benchmark
-of Section~\ref{sec:exp}, reduction lowers mean generated size from $41.4$
-to $19.0$ transistors (worked example in App.~A).
+Because the reward tightens as $T^*(g)$ improves, the group can collapse onto
+a single solution and stop exploring.  We add an entropy term
+$\mathcal{L} = \mathcal{L}_{\mathrm{PPO}} - \lambda_H \bar{H}$, where
+$\bar{H}$ is the mean per-step policy entropy across the four heads, so the
+policy continues to sample circuits shorter than its current best.
 
 \subsection{Phase 3: Physical-Aware Joint PDN+PUN Synthesis}
 \label{sec:physical}
 
-Phase~2 optimizes transistor count for a single switching network.
-Phase~3 extends the RL loop to \emph{joint} synthesis of the pull-down
-network (PDN) and pull-up network (PUN) of a complete CMOS cell,
-with a physical placement reward from ASTRAN~\cite{astran}.
+Phases~1 and~2 optimize a single switching network.  Phase~3 initializes from
+the Phase~2 checkpoint and extends the RL loop to a complete CMOS cell, scored
+by physical placement quality rather than transistor count.
 
-\paragraph{PDN and PUN function derivation.}
-For a CMOS cell implementing $f(\mathbf{x})$, both networks must be
-synthesized simultaneously:
-\begin{itemize}[leftmargin=*, topsep=1pt, itemsep=0pt]
-  \item \textbf{PDN} (NMOS, pulls output to GND when $f=0$):
-        switching function $= \lnot f(\mathbf{x})$;
-        on-patterns $= \Poff$ of $f$.
-  \item \textbf{PUN} (PMOS, pulls output to VDD when $f=1$):
-        switching function $= f(\lnot\mathbf{x})$, because PMOS
-        transistors conduct when gate $= 0$;
-        on-patterns $= \{\lnot\pi : \pi \in \Pon\}$.
-\end{itemize}
-Both are presented to the \emph{same} \method{} policy as distinct
-switching-network synthesis problems: the policy is conditioned
-on on/off patterns and is agnostic to transistor type (NMOS/PMOS).
+\paragraph{Joint synthesis.}
+By Proposition~\ref{prop:dual}, the PDN and PUN of a cell for $f$ are two
+instances of Problem~A, with on-patterns $\Poff$ and
+$\{\lnot\pi : \pi \in \Pon\}$ respectively.  The \emph{same} policy synthesizes
+both: it is conditioned only on the on/off pattern sets and is agnostic to
+transistor type.
 
-\paragraph{SPICE generation.}
-A complete PDN+PUN pair is encoded as a standard SPICE \texttt{.subckt}:
-NMOS transistors (\texttt{NMOS\_VTL}, $W=90\,$nm, $L=50\,$nm) implement
-the PDN with source at \texttt{GND}, drain at the output \texttt{ZN},
-and internal nodes \texttt{nd$k$}; PMOS transistors implement the PUN
-symmetrically.
-Gate signals map directly from literal labels: positive literal $x_i$
-$\to$ port \texttt{$x_i$}; negative literal $\lnot x_i$
-$\to$ complemented port \texttt{$x_i$\_N}.
-Power nets are named \texttt{VCC}/\texttt{GND} to match ASTRAN's
-default supply identifiers.
-
-\paragraph{Physical reward via ASTRAN.}
-ASTRAN places the combined SPICE netlist using Threshold Accepting
-(parameters: fold 2~0, SA quality~1, 1~attempt).
-It returns five placement metrics on the ``Final cost'' line:
-cell width $W_{\mathrm{cpp}}$ (CPP = total poly columns),
-gate mismatches $N_{\mathrm{gm}}$, wire length $W_{\mathrm{wl}}$,
-routing density $D_{\mathrm{rt}}$, and diffusion cuts $N_{\mathrm{gap}}$.
-We define the physical objective as ASTRAN's own weighted sum:
+\paragraph{Physical reward.}
+Each complete pair is emitted as a SPICE \texttt{.subckt} (App.~C) and placed
+by ASTRAN~\cite{astran}, which reports the five metrics of
+Section~\ref{sec:pre_phys}.  We score the pair by ASTRAN's own weighted cost,
 \begin{equation}
-  \Phi = w_c W_{\mathrm{cpp}} + w_m N_{\mathrm{gm}}
-       + w_w W_{\mathrm{wl}} + w_d D_{\mathrm{rt}}
-       + w_g N_{\mathrm{gap}},
-  \label{eq:phi}
+\begin{aligned}
+  &\Phi = w_c W_{\mathrm{cpp}} + w_m N_{\mathrm{gm}} + w_w W_{\mathrm{wl}} \\
+  &\qquad\quad + w_d D_{\mathrm{rt}} + w_g N_{\mathrm{gap}},
+\end{aligned}
+\label{eq:phi}
 \end{equation}
-with weights $(w_c, w_m, w_w, w_d, w_g) = (3, 4, 1, 4, 2)$ matching
-the ASTRAN SA cost function exactly, so minimizing $\Phi$
-is equivalent to minimizing ASTRAN's internal objective.
+with $(w_c, w_m, w_w, w_d, w_g) = (3, 4, 1, 4, 2)$ matching the ASTRAN
+simulated-annealing cost function exactly, so minimizing $\Phi$ is equivalent
+to minimizing ASTRAN's internal objective.
 
-The joint reward for a complete PDN+PUN pair is:
-\begin{equation}
-  r = \frac{\Phi^*(f)}{\Phi}, \qquad
-  \Phi^*(f) = \min_{\text{all pairs seen for }f} \Phi,
-  \label{eq:physical_reward}
-\end{equation}
-where $\Phi^*(f)$ is the self-tightening best objective found so far.
-Incomplete pairs (either PDN or PUN fails to cover all on-patterns
-within $T_{\max}$ steps) receive $r=0$.
+\paragraph{Paired trajectories.}
+For each function we generate $K$ paired trajectories
+$(\tau_k^{\mathrm{PDN}}, \tau_k^{\mathrm{PUN}})_{k=1}^{K}$ and call ASTRAN only
+on complete pairs, parallelized over a thread pool.  Rewards
+$r_k = \Phi^*(f)/\Phi_k$ follow Eq.~\ref{eq:reward}, and GRPO normalizes them
+within the $K$ pairs.  The resulting $\hat{A}_k$ is applied to \emph{every}
+step of both trajectories: a pair that places well reinforces both networks, a
+pair that places poorly penalizes both.  This is the only structural
+difference from the Phase~2 loop.
 
-\paragraph{Paired trajectory collection.}
-For each function $f$ per PPO step, $K$ paired trajectories
-$({\tau_k^{\mathrm{PDN}}, \tau_k^{\mathrm{PUN}}})_{k=1}^K$ are generated.
-ASTRAN is called only for complete pairs (up to $K$ calls per function per
-step), and calls are parallelized across a thread pool.
-The GRPO advantage normalizes rewards within the $K$ pairs:
-$\hat{A}_k = (r_k - \bar{r}) / (\sigma_r + \varepsilon)$.
-The same scalar $\hat{A}_k$ is applied to every step in both
-$\tau_k^{\mathrm{PDN}}$ and $\tau_k^{\mathrm{PUN}}$:
-if the pair achieves better-than-average placement, both networks
-are reinforced; otherwise both are penalized.
 
-\begin{algorithm}[t]
-\caption{\method{} Phase~3: Physical-Aware Joint PDN+PUN RL}
-\label{alg:physical}
-\begin{algorithmic}[1]
-\Require Phase~2 policy $\pi_\theta$, function list $\mathcal{F}$,
-         ASTRAN binary, weights $(w_c, w_m, w_w, w_d, w_g)$
-\State Initialize $\Phi^*(f) \leftarrow \infty$ for all $f$
-\State $\pi_{\mathrm{old}} \leftarrow \pi_\theta$
-\For{each epoch}
-  \State Sample batch $\mathcal{B} \subseteq \mathcal{F}$
-  \For{each $f \in \mathcal{B}$}
-    \For{$k = 1, \ldots, K$}
-      \State $\tau_k^{\mathrm{PDN}} \leftarrow$ generate($\pi_{\mathrm{old}}$, $\lnot f(\mathbf{x})$)
-      \State $\tau_k^{\mathrm{PUN}} \leftarrow$ generate($\pi_{\mathrm{old}}$, $f(\lnot\mathbf{x})$)
-      \If{both complete}
-        \State $\Phi_k \leftarrow$ ASTRAN(SPICE($\tau_k^{\mathrm{PDN}}, \tau_k^{\mathrm{PUN}}$))
-        \State Update $\Phi^*(f)$ if $\Phi_k < \Phi^*(f)$
-        \State $r_k \leftarrow \Phi^*(f) / \Phi_k$
-      \Else\ $r_k \leftarrow 0$
-      \EndIf
-    \EndFor
-    \State GRPO: $\hat{A}_k \leftarrow (r_k - \bar{r}) / (\sigma_r + \varepsilon)$
-  \EndFor
-  \State Update $\theta$ via PPO + entropy loss on all steps
-  \If{step $\equiv 0 \pmod{M}$} $\pi_{\mathrm{old}} \leftarrow \pi_\theta$ \EndIf
-\EndFor
-\end{algorithmic}
-\end{algorithm}
+
+% % ─────────────────────────────────────────────────────────────────────────────
+% \subsection{Theoretical Foundations}
+% \label{sec:theory}
+
+% We establish four results that jointly guarantee both the
+% \emph{soundness} (every generated circuit is valid) and
+% \emph{completeness} (every valid circuit is reachable) of our
+% safety-masked sequential generation framework.
+% Worked $2$-variable examples illustrating each result, and all proofs, are
+% given in the supplementary material (App.~A--B).
+
+% \begin{theorem}[Monotonicity of Conducting Paths]
+% \label{thm:mono}
+% For any transistor network $G$ and any transistor $e \notin E(G)$,
+% $\mathrm{Paths}(G) \subseteq \mathrm{Paths}(G \cup \{e\})$.
+% \end{theorem}
+% \begin{corollary}[Incremental Safety Checking]
+% \label{cor:safety}
+% If $G$ is safe, then $G \cup \{(u,v,\ell)\}$ is safe iff $(u,v,\ell)$ alone
+% does not create a new $\SRC \to \SNK$ path under any $\pi \in \Poff$.
+% \end{corollary}
+% This reduces safety verification per candidate from $O(|E|)$ to
+% $O(|\Poff|\cdot|V|)$, independent of circuit size.
+
+% \begin{theorem}[SOP Network Correctness]
+% \label{thm:sop}
+% Let $G_{\mathrm{SOP}}(f)$ be the series-parallel network with one
+% $N$-transistor series chain per $\pi \in \Pon$, all sharing $\SRC$/$\SNK$.
+% Then $G_{\mathrm{SOP}}(f)$ correctly implements $f$.
+% \end{theorem}
+% \begin{theorem}[Completeness of Safety-Masked Search]
+% \label{thm:complete}
+% For any valid network $G^*$ implementing $f$, every permutation of
+% $E(G^*)$ is a valid trajectory under the safety mask.
+% Equivalently, the safety-masked MDP reaches $G^*$ from the empty graph
+% in $|E(G^*)|$ steps following any edge ordering.
+% \end{theorem}
+% \paragraph{Implication for search completeness.}
+% Theorem~\ref{thm:complete} is the key correctness guarantee of our framework:
+% \emph{the safety mask never prunes any valid solution}.
+% It only forbids transistors whose addition immediately creates an off-pattern
+% path — those that cannot appear in any correct, safe network.
+% The policy therefore searches the full space of valid partial sub-networks;
+% no optimal solution is made unreachable by the masking procedure.
+
+% \subsection{MDP Formulation}
+% \label{sec:mdp}
+
+% \paragraph{State.}
+% The state at step $t$ is $\mathcal{G}_t = G_t \cup C$, where $G_t$ is
+% the partial synthesized network and $C = G_{\mathrm{SOP}}(f)$ is the
+% fixed compensate network from Theorem~\ref{thm:sop}.
+% The two share only $\SRC$ and $\SNK$.
+
+% \paragraph{Action.}
+% Action $a_t = (u,v,\ell)$ adds one transistor.
+% Two masks apply: (i) \textbf{reachability mask} on $u$ prunes structurally
+% disconnected nodes; (ii) \textbf{safety mask} on $(u,v,\ell)$ forbids
+% transistors creating $\Poff$-paths (Corollary~\ref{cor:safety}).
+% By Theorem~\ref{thm:complete}, the safety mask is complete.
+
+% \paragraph{Reward.}
+% Terminal reward only (no per-step penalty):
+% \begin{equation}
+%   r = \begin{cases}
+%     T^*(f)/T   & \text{Phase 2: complete network, } T \text{ transistors}\\
+%     \Phi^*(f)/\Phi & \text{Phase 3: complete PDN+PUN pair}\\
+%     0          & \text{incomplete.}
+%   \end{cases}
+%   \label{eq:reward}
+% \end{equation}
+% $T^*(f)$ and $\Phi^*(f)$ are self-tightening best values found so far for $f$.
+
+% % ─────────────────────────────────────────────────────────────────────────────
+% \subsection{Unified Graph State Representation}
+
+% At each step $t$, the policy observes the unified graph
+% $\mathcal{G}_t = G_t \cup C$, where:
+% \begin{itemize}[leftmargin=*, topsep=1pt, itemsep=0pt]
+%   \item $G_t = (V_t, E_t)$ is the \emph{partial synthesized network}
+%         built so far (edges are placed transistors with literal labels).
+%   \item $C = G_{\mathrm{SOP}}(f)$ is the \emph{fixed compensate network}
+%         (Theorem~\ref{thm:sop}), kept constant across all steps of the episode.
+% \end{itemize}
+% The two components share only $\SRC$ and $\SNK$; all internal nodes
+% are disjoint.
+% This unified representation gives the GNN simultaneous access to
+% the current circuit topology ($G_t$) and the full logical specification
+% of $f$ ($C$), enabling the policy to reason jointly about what has
+% been built and what coverage obligations remain.
+
+% \paragraph{Node and edge features.}
+% Each node $v \in \mathcal{G}_t$ carries a feature vector encoding:
+% node type ($\SRC$, $\SNK$, $G$-internal, $C$-internal),
+% connectivity degree in $G_t$ and in $C$ separately,
+% and a coverage indicator (whether $v$ lies on a chain for an
+% already-covered on-pattern).
+% Each edge $(u, v, \ell) \in E_t \cup E_C$ carries a feature vector
+% encoding: component membership ($G$ vs.\ $C$), variable index,
+% and polarity.
+% Node feature dimension $d_\mathrm{node}$ and edge feature
+% dimension $d_\mathrm{edge}$ are given in the supplementary (App.~C).
+
+% \paragraph{Virtual new-node embedding.}
+% The node space is extended to $V_t^+ = V_t \cup \{v_\mathrm{new}\}$
+% by appending a single learnable embedding $\mathbf{e}_\mathrm{new} \in \mathbb{R}^d$
+% for the virtual new-node option.
+% This allows the policy to propose a fresh internal node at any step
+% without a separate node-count decision, keeping the action space
+% consistent regardless of how many nodes have been created so far.
+
+% \subsection{\sgpn: Five-Head Factored Policy}
+
+% \begin{figure}[t]
+% \centering
+% \input{fig/sgpn_arch}
+% \caption{Architecture of the \sgpn (\SGPN).
+% The unified graph $\mathcal{G}_t = G_t \cup C_{\mathrm{SOP}}$ is encoded
+% by a shared MPNN backbone; four factored heads with per-head safety masks
+% decode the transistor-placement action $(u^*,v^*,k^*,s^*)$.}
+% \label{fig:sgpn}
+% \end{figure}
+
+% The \SGPN uses an MPNN backbone~\cite{gilmer2017mpnn} with $L$ message-passing
+% layers and hidden dimension $d$ to compute node and graph-level features from
+% $\mathcal{G}_t$.
+% Let $\mathbf{h}_i \in \mathbb{R}^d$ be the node feature for node $i$
+% and $\mathbf{g} \in \mathbb{R}^{2d}$ the graph-level summary.
+% Four specialized MLP heads decode the transistor-placement action from these
+% features, each operating over a different sub-decision of the factored action
+% space.
+% All four heads share the same MPNN forward pass; safety masks are applied
+% independently within each head.
+
+% \paragraph{Head~1: Node-1 (source node).}
+% Scores each $G$-node $u \in V_t^+$ as the source of the new transistor:
+% \[
+%   s_u = \mathrm{MLP}_1([\mathbf{h}_u \| \mathbf{g}]).
+% \]
+% Logits are masked to allow only nodes in the reachability set.
+
+% \paragraph{Head~2: Node-2 (drain node).}
+% Conditioned on the sampled source $u^*$, scores each node $v \in V_t^+$,
+% $v \neq u^*$:
+% \[
+%   s_v = \mathrm{MLP}_2([\mathbf{h}_{u^*} \| \mathbf{h}_v \| \mathbf{g}]).
+% \]
+% Logits are masked to exclude nodes that have no safe literal for any
+% $(u^*, v, \ell)$ (precomputed BFS safety check).
+
+% \paragraph{Head~3: Variable index.}
+% Given the sampled edge $(u^*, v^*)$, selects the control variable:
+% \[
+%   \mathbf{s}_{\mathrm{var}} = \mathrm{MLP}_3([\mathbf{h}_{u^*} \| \mathbf{h}_{v^*}])
+%   \in \mathbb{R}^{N_{\mathrm{var}}}.
+% \]
+% Logits are safety-masked: only variables with at least one safe polarity
+% for $(u^*, v^*)$ are valid.
+
+% \paragraph{Head~4: Polarity (sign).}
+% Selects positive or negative literal for the chosen variable:
+% \[
+%   \mathbf{s}_{\mathrm{sgn}} = \mathrm{MLP}_4([\mathbf{h}_{u^*} \| \mathbf{h}_{v^*}])
+%   \in \mathbb{R}^{2}.
+% \]
+% Logits are safety-masked per the chosen variable.
+
+% \paragraph{Factored log-probability.}
+% The log-probability of placing transistor $(u, v, k, s)$ factorizes as:
+% % \begin{equation}
+% %   \log \pi(a \mid \mathcal{G}_t)
+% %   = \underbrace{\log p_1(u)}_{\text{Head 1}}
+% %   + \underbrace{\log p_2(v \mid u)}_{\text{Head 2}}
+% %   + \underbrace{\log p_3(k \mid u,v)}_{\text{Head 3}}
+% %   + \underbrace{\log p_4(s \mid u,v,k)}_{\text{Head 4}},
+% %   \label{eq:logp}
+% % \end{equation}
+
+% \begin{equation}
+% \begin{aligned}
+%   &\log \pi(a \mid \mathcal{G}_t) = \log p_1(u) + \log p_2(v \mid u) \\
+%   &\qquad + \log p_3(k \mid u,v) + \log p_4(s \mid u,v,k),
+% \end{aligned}
+% \label{eq:logp}
+% \end{equation}
+% where $p_j$ is the masked softmax of Head~$j$ over its safe candidates.
+% % where all probabilities are masked softmax over safe candidates.
+% By Corollary~\ref{cor:safety}, every action sampled from this distribution
+% maintains the safety invariant; no post-hoc filtering is required.
+
+% \paragraph{Batched forward pass.}
+% During PPO training, $K$ trajectories are collected per function per update
+% step, each of length up to $T_{\max}$.
+% Naively, this requires $O(K \cdot T_{\max})$ separate MPNN forward passes.
+% Instead, all step graphs across all trajectories and all functions in the
+% mini-batch are packed into a single \texttt{PackedGraph} and processed with
+% \emph{one} MPNN call.
+% Per-step node features are then sliced from the shared output tensor for
+% the head MLPs.
+% This reduces the dominant computation cost by $K \cdot T_{\max}\times$
+% and makes large-batch PPO training feasible on a single GPU.
+
+% \subsection{Phase 1: NLL Pretraining}
+
+% We collect a dataset $\mathcal{D}$ of known-optimal transistor networks,
+% each paired with its target Boolean function.
+% For each network, we replay the transistor-placement sequence and record
+% the $(u, v, k, s)$ labels at every step.
+
+% \paragraph{Construction order (supervision linearization).}
+% \label{par:order}
+% A transistor network is an \emph{unordered} set of devices, so replaying it
+% as a sequence requires choosing a linearization
+% $e_1,\dots,e_{|E^*|}$, and that choice defines the learning problem.
+% A natural default is to order devices by node index (equivalently, by a
+% breadth-first traversal from the rails), but this makes the source label an
+% artifact of the indexing convention rather than of the circuit.
+% We instead use a \emph{path (ear) decomposition}: the sequence is emitted as
+% successive walks, where the first walk starts at \textsc{src} and extends
+% through unvisited nodes until it closes into already-visited structure
+% (preferentially at \textsc{snk}), and each later walk (an \emph{ear}) starts
+% at an already-visited node and extends until it reconnects.
+% Every emitted action therefore satisfies the invariant that $u$ is already
+% present in the partial network, so the walk direction fixes the orientation.
+
+% This ordering aligns supervision with the semantics of the task: because
+% conduction is achieved only when a \textsc{src}$\to$\textsc{snk} path
+% \emph{closes}, decomposing the target into completed paths makes each label
+% continue a coherent sub-goal.  It also changes the difficulty profile.
+% During a walk extension the partial network has exactly one dangling
+% endpoint, and that endpoint \emph{is} the next source, so Head~1 becomes
+% structurally determined rather than conventional; the residual difficulty
+% concentrates at \emph{ear starts}, where the model must choose which
+% existing node to branch from --- precisely the structure-sharing decision
+% that governs compactness.  Section~\ref{sec:exp} shows this single change
+% raises source-selection accuracy by roughly $30$ points, far more than any
+% architectural variation we tested.
+
+% \paragraph{Label consistency.}
+% A Boolean function typically admits many distinct optimal or near-optimal
+% networks.  Retaining several implementations of the \emph{same} function
+% pairs identical states with conflicting targets, giving the objective an
+% irreducible floor.  We therefore retain a single implementation per
+% function (the most compact one), which both removes the conflict and makes
+% the supervision consistent with the downstream objective of minimizing
+% transistor count.
+
+% The pretraining objective is the mean negative log-likelihood:
+% \[
+%   \mathcal{L}_{\mathrm{NLL}}
+%   = -\frac{1}{|\mathcal{D}|} \sum_{(G^*, f) \in \mathcal{D}}
+%     \sum_{t=1}^{|E^*|} \log \pi(a_t^* \mid \mathcal{G}_{t-1}),
+% \]
+% where $a_t^*$ is the ground-truth transistor at step $t$.
+% The unified graph $\mathcal{G}_{t-1}$ is constructed from the partial
+% prefix $G_{t-1}^*$ and the fixed compensate network $C_f$.
+% Pretraining is batched via \texttt{PackedGraph} (all samples in a mini-batch
+% share a single MPNN forward pass) and trained with Adam until convergence.
+
+% \subsection{Phase 2: PPO Finetuning}
+% \label{sec:rl}
+
+% After pretraining, we finetune with off-policy PPO.
+% A frozen copy of the current model (\emph{agent}) generates trajectories;
+% the live model recomputes log-probabilities for the PPO surrogate loss.
+
+% \paragraph{Reward design.}
+% We use a purely terminal reward with no per-step penalty.
+% Let $T$ be the number of transistors placed and $T^*$ the best transistor
+% count found so far for this function (\emph{adaptive self-tightening target}):
+% \[
+%   r = \begin{cases} T^*/T & \text{if complete,} \\ 0 & \text{otherwise.} \end{cases}
+% \]
+% Once the policy discovers a shorter circuit, $T^*$ updates automatically,
+% so subsequent solutions that are longer receive a reduced reward.
+% Each step in the trajectory receives the same scalar $r$ (no discounting).
+
+% \paragraph{GRPO baseline.}
+% For each function in the batch, we sample $K$ trajectories in parallel.
+% The advantage for each trajectory is normalized within the group:
+% % \[
+% %   \hat{A}_k = \frac{r_k - \bar{r}}{\sigma_r + \varepsilon},
+% %   \qquad
+% %   \bar{r} = \frac{1}{K}\sum_{k=1}^K r_k,\quad
+% %   \sigma_r = \sqrt{\frac{1}{K}\sum_{k=1}^K (r_k - \bar{r})^2}.
+% % \]
+
+% \[
+%   \hat{A}_k = \frac{r_k - \bar{r}}{\sigma_r + \varepsilon},\;\;
+%   \bar{r} = \tfrac{1}{K}\sum_{k=1}^K r_k,\;\;
+%   \sigma_r = \sqrt{\tfrac{1}{K}\sum_{k=1}^K (r_k - \bar{r})^2}.
+% \]
+
+% This group-relative policy optimization (GRPO)~\cite{grpo} baseline
+% eliminates EMA lag and gives a strong positive signal to any trajectory
+% shorter than its group average without requiring a value network.
+
+% \paragraph{Entropy bonus.}
+% To prevent mode collapse (where all $K$ trajectories converge to the same
+% solution), we add an entropy regularization term to the PPO loss:
+% \[
+%   \mathcal{L} = \mathcal{L}_{\mathrm{PPO}} - \lambda_H \cdot \bar{H},
+% \]
+% where $\bar{H}$ is the mean per-step policy entropy across all four heads
+% and $\lambda_H$ is a tunable coefficient (default 0.01).
+% The entropy bonus maintains exploration, ensuring the policy continues to
+% occasionally sample shorter-than-current-best circuits.
+
+% \paragraph{Batched MPNN forward.}
+% To reduce wall-clock time, all trajectory steps across all $K$ trajectories
+% and all functions in the batch are packed into a single \texttt{PackedGraph}
+% and processed with one MPNN forward pass.
+% Subsequent head MLPs slice per-step node features from the shared output.
+% This replaces $O(K \cdot T_{\max})$ sequential forward passes with~1.
+
+% \paragraph{Agent synchronization.}
+% The frozen agent is re-synchronized to the live model every $M$ PPO steps
+% to keep the importance-sampling ratio $\pi/\pi_{\mathrm{old}}$ within a
+% controlled range.
+
+% \begin{figure*}[t]
+% \centering
+% \input{fig/training_flow}
+% \caption{Three-phase training pipeline of \method.
+% Phase~1 initialises the \SGPN by NLL imitation on known-optimal circuits.
+% Phase~2 finetunes toward minimum transistor count via PPO with adaptive
+% reward $r = T^*(f)/T$ and GRPO baseline.
+% Phase~3 jointly synthesises PDN and PUN and uses the ASTRAN placement
+% objective $\Phi$ directly as the reward, optimising physical layout quality.}
+% \label{fig:training}
+% \end{figure*}
+
+% \begin{algorithm}[t]
+% \caption{\method{} / \SGPN Training (Phases 1--2)}
+% \label{alg:train}
+% \begin{algorithmic}[1]
+% \Require Dataset $\mathcal{D}$, function list $\mathcal{F}$,
+%          hyperparameters $K, M, \lambda_H, \varepsilon_{\mathrm{clip}}$
+% \State Pretrain policy $\pi_\theta$ by NLL on $\mathcal{D}$ (Phase 1)
+% \State Initialize frozen agent $\pi_{\mathrm{old}} \leftarrow \pi_\theta$
+% \For{each epoch}
+%   \State Sample batch of functions $\mathcal{B} \subseteq \mathcal{F}$
+%   \For{each $f \in \mathcal{B}$}
+%     \State Generate $K$ trajectories using $\pi_{\mathrm{old}}$
+%     \State Update $T^*(f)$ if shorter complete circuit found
+%     \State Compute rewards $\{r_k\}$ and GRPO advantages $\{\hat{A}_k\}$
+%   \EndFor
+%   \State Compute batched PPO + entropy loss
+%   \State Update $\theta$ via Adam
+%   \If{step $\equiv 0 \pmod{M}$} $\pi_{\mathrm{old}} \leftarrow \pi_\theta$ \EndIf
+% \EndFor
+% \end{algorithmic}
+% \end{algorithm}
+
+% \subsection{Network Reduction}
+% \label{sec:reduction}
+
+% A generated network may contain transistors that do not affect the function
+% it computes, and counting them overstates its cost.  We therefore reduce
+% every network before scoring it, using two nested notions.
+% A transistor is \emph{structurally dead} if it lies on no simple
+% \textsc{src}$\to$\textsc{snk} path; such devices can never carry current and
+% are removed by keeping only those edges whose biconnected block lies on the
+% block-cut-tree path between the rails.  More generally, a network is
+% \emph{irredundant} if no single transistor can be deleted while still
+% covering every on-pattern; we delete such transistors greedily to a fixed
+% point.
+
+% \begin{lemma}[Deletion preserves safety]
+% \label{lem:deletion}
+% Let $G' \subseteq G$ be obtained by deleting transistors.  If $G$ conducts
+% under no off-pattern, then neither does $G'$.
+% \end{lemma}
+% Lemma~\ref{lem:deletion} is what makes reduction cheap: deletion can only
+% \emph{reduce} conduction, so no off-pattern re-verification is needed and it
+% suffices to re-check on-pattern coverage.  We write $T_{\mathrm{eff}}$ for
+% the reduced size and use it both when reporting results and inside the
+% reward, so the policy is never penalized for redundancy that a downstream
+% pass would remove.  This matters quantitatively: on the $6$-input NSP benchmark
+% of Section~\ref{sec:exp}, reduction lowers mean generated size from $41.4$
+% to $19.0$ transistors (worked example in App.~A).
+
+% \subsection{Phase 3: Physical-Aware Joint PDN+PUN Synthesis}
+% \label{sec:physical}
+
+% Phase~2 optimizes transistor count for a single switching network.
+% Phase~3 extends the RL loop to \emph{joint} synthesis of the pull-down
+% network (PDN) and pull-up network (PUN) of a complete CMOS cell,
+% with a physical placement reward from ASTRAN~\cite{astran}.
+
+% \paragraph{PDN and PUN function derivation.}
+% For a CMOS cell implementing $f(\mathbf{x})$, both networks must be
+% synthesized simultaneously:
+% \begin{itemize}[leftmargin=*, topsep=1pt, itemsep=0pt]
+%   \item \textbf{PDN} (NMOS, pulls output to GND when $f=0$):
+%         switching function $= \lnot f(\mathbf{x})$;
+%         on-patterns $= \Poff$ of $f$.
+%   \item \textbf{PUN} (PMOS, pulls output to VDD when $f=1$):
+%         switching function $= f(\lnot\mathbf{x})$, because PMOS
+%         transistors conduct when gate $= 0$;
+%         on-patterns $= \{\lnot\pi : \pi \in \Pon\}$.
+% \end{itemize}
+% Both are presented to the \emph{same} \method{} policy as distinct
+% switching-network synthesis problems: the policy is conditioned
+% on on/off patterns and is agnostic to transistor type (NMOS/PMOS).
+
+% \paragraph{SPICE generation.}
+% A complete PDN+PUN pair is encoded as a standard SPICE \texttt{.subckt}:
+% NMOS transistors (\texttt{NMOS\_VTL}, $W=90\,$nm, $L=50\,$nm) implement
+% the PDN with source at \texttt{GND}, drain at the output \texttt{ZN},
+% and internal nodes \texttt{nd$k$}; PMOS transistors implement the PUN
+% symmetrically.
+% Gate signals map directly from literal labels: positive literal $x_i$
+% $\to$ port \texttt{$x_i$}; negative literal $\lnot x_i$
+% $\to$ complemented port \texttt{$x_i$\_N}.
+% Power nets are named \texttt{VCC}/\texttt{GND} to match ASTRAN's
+% default supply identifiers.
+
+% \paragraph{Physical reward via ASTRAN.}
+% ASTRAN places the combined SPICE netlist using Threshold Accepting
+% (parameters: fold 2~0, SA quality~1, 1~attempt).
+% It returns five placement metrics on the ``Final cost'' line:
+% cell width $W_{\mathrm{cpp}}$ (CPP = total poly columns),
+% gate mismatches $N_{\mathrm{gm}}$, wire length $W_{\mathrm{wl}}$,
+% routing density $D_{\mathrm{rt}}$, and diffusion cuts $N_{\mathrm{gap}}$.
+% We define the physical objective as ASTRAN's own weighted sum:
+% \begin{equation}
+%   \Phi = w_c W_{\mathrm{cpp}} + w_m N_{\mathrm{gm}}
+%        + w_w W_{\mathrm{wl}} + w_d D_{\mathrm{rt}}
+%        + w_g N_{\mathrm{gap}},
+%   \label{eq:phi}
+% \end{equation}
+% with weights $(w_c, w_m, w_w, w_d, w_g) = (3, 4, 1, 4, 2)$ matching
+% the ASTRAN SA cost function exactly, so minimizing $\Phi$
+% is equivalent to minimizing ASTRAN's internal objective.
+
+% The joint reward for a complete PDN+PUN pair is:
+% \begin{equation}
+%   r = \frac{\Phi^*(f)}{\Phi}, \qquad
+%   \Phi^*(f) = \min_{\text{all pairs seen for }f} \Phi,
+%   \label{eq:physical_reward}
+% \end{equation}
+% where $\Phi^*(f)$ is the self-tightening best objective found so far.
+% Incomplete pairs (either PDN or PUN fails to cover all on-patterns
+% within $T_{\max}$ steps) receive $r=0$.
+
+% \paragraph{Paired trajectory collection.}
+% For each function $f$ per PPO step, $K$ paired trajectories
+% $({\tau_k^{\mathrm{PDN}}, \tau_k^{\mathrm{PUN}}})_{k=1}^K$ are generated.
+% ASTRAN is called only for complete pairs (up to $K$ calls per function per
+% step), and calls are parallelized across a thread pool.
+% The GRPO advantage normalizes rewards within the $K$ pairs:
+% $\hat{A}_k = (r_k - \bar{r}) / (\sigma_r + \varepsilon)$.
+% The same scalar $\hat{A}_k$ is applied to every step in both
+% $\tau_k^{\mathrm{PDN}}$ and $\tau_k^{\mathrm{PUN}}$:
+% if the pair achieves better-than-average placement, both networks
+% are reinforced; otherwise both are penalized.
+
+% \begin{algorithm}[t]
+% \caption{\method{} Phase~3: Physical-Aware Joint PDN+PUN RL}
+% \label{alg:physical}
+% \begin{algorithmic}[1]
+% \Require Phase~2 policy $\pi_\theta$, function list $\mathcal{F}$,
+%          ASTRAN binary, weights $(w_c, w_m, w_w, w_d, w_g)$
+% \State Initialize $\Phi^*(f) \leftarrow \infty$ for all $f$
+% \State $\pi_{\mathrm{old}} \leftarrow \pi_\theta$
+% \For{each epoch}
+%   \State Sample batch $\mathcal{B} \subseteq \mathcal{F}$
+%   \For{each $f \in \mathcal{B}$}
+%     \For{$k = 1, \ldots, K$}
+%       \State $\tau_k^{\mathrm{PDN}} \leftarrow$ generate($\pi_{\mathrm{old}}$, $\lnot f(\mathbf{x})$)
+%       \State $\tau_k^{\mathrm{PUN}} \leftarrow$ generate($\pi_{\mathrm{old}}$, $f(\lnot\mathbf{x})$)
+%       \If{both complete}
+%         \State $\Phi_k \leftarrow$ ASTRAN(SPICE($\tau_k^{\mathrm{PDN}}, \tau_k^{\mathrm{PUN}}$))
+%         \State Update $\Phi^*(f)$ if $\Phi_k < \Phi^*(f)$
+%         \State $r_k \leftarrow \Phi^*(f) / \Phi_k$
+%       \Else\ $r_k \leftarrow 0$
+%       \EndIf
+%     \EndFor
+%     \State GRPO: $\hat{A}_k \leftarrow (r_k - \bar{r}) / (\sigma_r + \varepsilon)$
+%   \EndFor
+%   \State Update $\theta$ via PPO + entropy loss on all steps
+%   \If{step $\equiv 0 \pmod{M}$} $\pi_{\mathrm{old}} \leftarrow \pi_\theta$ \EndIf
+% \EndFor
+% \end{algorithmic}
+% \end{algorithm}

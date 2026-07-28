@@ -18,6 +18,8 @@
 \usepackage{enumitem}
 \usepackage{xcolor}
 \usepackage{tikz}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
 \usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric,
                 decorations.pathreplacing}
 
@@ -47,9 +49,13 @@
 \affiliations{}
 \maketitle
 
-\noindent This supplement collects worked examples, full proofs, and the
-hyperparameter table referenced in the main paper. Section/Theorem/Example
-numbers refer to the main paper unless prefixed with ``S''.
+\setcounter{secnumdepth}{2}
+\appendix
+
+\noindent This supplement collects worked examples, full proofs, implementation
+details, and the training pipeline referenced in the main paper.  Proposition,
+theorem, corollary, and lemma numbers match those of the main paper; figure,
+table, and example numbers are local to this supplement.
 
 % ============================================================
 \section{Worked Examples}
@@ -65,8 +71,8 @@ correct and coverage-complete, reachable in any insertion order
 (b) A safe series chain for $x_1x_2$; the dashed shortcut $(\mathrm{S},
 \mathrm{T},x_1)$ is rejected by the safety mask because it conducts under the
 off-pattern $10$ (Example~\ref{ex:mono}).
-(c) The AND2 cell: parallel NMOS pull-down, series PMOS pull-up ---
-duals synthesized by one policy (Example~\ref{ex:dual}).
+(c) The AND2 cell: parallel NMOS pull-down, series PMOS pull-up; duals
+synthesized by one policy (Example~\ref{ex:dual}).
 (d) A structurally dead transistor (grey), free to delete with no off-pattern
 recheck (Example~\ref{ex:reduction}).
 Circles S/T are the source/sink rails; small green nodes are internal.}
@@ -97,27 +103,28 @@ $\SRC \!\xrightarrow{x_1}\! n \!\xrightarrow{x_2}\! \SNK$.
 This network is \emph{safe}: under $00$, $01$, $10$ at least one of
 $x_1,x_2$ is $0$, so no $\SRC\!\to\!\SNK$ path conducts.
 Now add the shortcut $e=(\SRC,\SNK,x_1)$.
-By monotonicity (Thm.~2) every previously conducting path still conducts, so
-we test only whether $e$ \emph{by itself} creates an off-pattern path
-(Cor.~3): under $10\in\Poff$, $x_1=1$, so $e$ alone connects $\SRC$ to $\SNK$
-and conducts illegally --- $e$ is masked out.  Adding $e'=(\SRC,\SNK,x_1 x_2)$
-would be admissible, since $x_1 x_2 = 0$ on all of $\Poff$.
+By monotonicity (Theorem~\ref{sthm:mono}) every previously conducting path
+still conducts, so we test only whether $e$ \emph{by itself} creates an
+off-pattern path (Corollary~\ref{scor:safety}): under $10\in\Poff$, $x_1=1$,
+so $e$ alone connects $\SRC$ to $\SNK$ and conducts illegally, and $e$ is
+masked out.  Adding $e'=(\SRC,\SNK,x_1 x_2)$ would be admissible, since
+$x_1 x_2 = 0$ on all of $\Poff$.
 We reach this verdict by checking only the new edge against $|\Poff|=3$
 patterns, never re-examining the existing chain.
 \end{example}
 
 \begin{example}[SOP network for a 2-variable function]
 \label{ex:sop}
-For $f = x_1 \bar{x}_2 + \bar{x}_1 x_2$ (XOR), $\Pon = \{10, 01\}$.
-$G_{\mathrm{SOP}}(f)$ places one $2$-transistor chain per on-pattern between
+For $g = x_1 \bar{x}_2 + \bar{x}_1 x_2$ (XOR), $\Pon = \{10, 01\}$.
+$G_{\mathrm{SOP}}(g)$ places one $2$-transistor chain per on-pattern between
 the shared rails (Figure~\ref{fig:examples}(a)): chain~A is
 $\SRC\!\xrightarrow{x_1}\!a\!\xrightarrow{\bar{x}_2}\!\SNK$ and chain~B is
 $\SRC\!\xrightarrow{\bar{x}_1}\!b\!\xrightarrow{x_2}\!\SNK$.
-Under $10$, chain~A conducts and $f=1$; under $01$, chain~B conducts.
+Under $10$, chain~A conducts and $g=1$; under $01$, chain~B conducts.
 Under $00,11$ each chain has one broken transistor, so nothing conducts.
-This $4$-transistor network is correct but not minimal --- XOR admits a
-$3$-transistor bridge --- and it serves as the fixed \emph{compensate} network
-$C_f$ that conditions the state.
+This $4$-transistor network is correct but not minimal, since XOR admits a
+$3$-transistor bridge.  It serves as the fixed \emph{compensate} network
+$C_g$ that conditions the state.
 \end{example}
 
 \begin{example}[The mask never blocks a valid target]
@@ -127,7 +134,7 @@ $\{e_1,e_2\}$ (chain~A), $\{e_3,e_4\}$ (chain~B), built in the interleaved
 order $e_1,e_3,e_2,e_4$ that never completes a chain until the end.
 At each prefix the partial network is a subgraph of $G^*$; by monotonicity any
 off-pattern path in a prefix would also exist in the safe $G^*$, so no prefix
-conducts illegally and the mask rejects none of the four placements --- as for
+conducts illegally and the mask rejects none of the four placements, as for
 all $4!=24$ orderings.
 Thus, although path-order supervision presents one linearization, completeness
 guarantees the policy is free to discover $G^*$ in any order.
@@ -138,9 +145,9 @@ guarantees the policy is free to discover $G^*$ in any order.
 Suppose the policy synthesizes the XOR pull-down of Example~\ref{ex:sop}
 (chains A and B) but also emits a stray device $s=(a,b,x_1)$ linking the two
 internal nodes (Figure~\ref{fig:examples}(d)).
-Deleting $s$ yields $G'\subseteq G$; by Lemma~6 no off-pattern check is
-needed, so we re-verify only coverage: chains A and B still carry $10$ and
-$01$, hence $G'$ computes the same function.
+Deleting $s$ yields $G'\subseteq G$; by Lemma~\ref{slem:deletion} no
+off-pattern check is needed, so we re-verify only coverage: chains A and B
+still carry $10$ and $01$, hence $G'$ computes the same function.
 Because $s$ lies on no \SRC$\to$\SNK path it is structurally dead, and the
 reported cost is $T_{\mathrm{eff}}=4$ rather than $5$.
 On the $6$-input NSP benchmark this accounting difference is the gap between a
@@ -151,97 +158,268 @@ mean of $41.4$ and $19.0$ transistors.
 \section{Proofs}
 \label{app:proofs}
 
-\begin{theorem}[Monotonicity of Conducting Paths; Thm.~2]
-For any network $G$ and transistor $e \notin E(G)$,
+\noindent Results are restated in the order they appear in the main paper, and
+the numbering below matches it.
+
+\begin{proposition}[Dual Switching Network Equivalence]
+\label{sprop:dual}
+Let $\Pon$ and $\Poff$ denote the on- and off-patterns of the cell function
+$f$.
+A CMOS cell correctly implements $f(\mathbf{x})$ if and only if its PDN
+correctly implements $\lnot f(\mathbf{x})$, with on-patterns $\Poff$, and its
+PUN correctly implements $f(\lnot\mathbf{x})$, with on-patterns
+$\{\lnot\pi : \pi \in \Pon\}$.
+\end{proposition}
+\begin{proof}
+\textit{(PDN.)}
+An NMOS transistor with gate literal $x_i$ conducts exactly when $x_i = 1$, so
+its behaviour coincides with the switch semantics of Definition~2 with no
+relabelling.
+By definition the cell is correct only if the PDN pulls the output low
+whenever $f(\mathbf{x}) = 0$, that is, only if it conducts for every
+$\pi \in \Poff$, and only if it leaves the output floating whenever
+$f(\mathbf{x}) = 1$, that is, only if it conducts for no $\pi \in \Pon$.
+These are precisely coverage and safety for the function $\lnot f$, whose
+on-patterns are $\Poff$.
+
+\textit{(PUN.)}
+A PMOS transistor with gate literal $x_i$ conducts exactly when $x_i = 0$, so
+it behaves as a switch controlled by $\lnot x_i$.
+Substituting $\mathbf{y} = \lnot\mathbf{x}$ turns every PMOS gate into a
+positive literal in $\mathbf{y}$, so the PUN, read as a switching network over
+$\mathbf{y}$, conducts iff $f(\lnot\mathbf{y}) = 1$.
+The cell is correct only if the PUN pulls the output high whenever
+$f(\mathbf{x}) = 1$, and by the substitution this is the condition
+$\mathbf{y} \in \{\lnot\pi : \pi \in \Pon\}$.
+Hence the PUN implements $f(\lnot\mathbf{x})$ with that on-pattern set.
+
+Both directions of the equivalence follow, since each step above is a
+restatement of the cell-correctness condition of Definition~3 rather than an
+implication in one direction only.
+\end{proof}
+
+\begin{theorem}[Monotonicity of Conducting Paths]
+\label{sthm:mono}
+For any transistor network $G$ and any transistor $e \notin E(G)$,
 $\mathrm{Paths}(G) \subseteq \mathrm{Paths}(G \cup \{e\})$.
 \end{theorem}
 \begin{proof}
 Adding $e$ can only activate new conducting channels; it cannot deactivate any
-already-conducting transistor. Hence every path that conducted in $G$ still
+already-conducting transistor.  Hence every path that conducted in $G$ still
 conducts in $G \cup \{e\}$.
 \end{proof}
 
-\begin{corollary}[Incremental Safety Checking; Cor.~3]
-If $G$ is safe, then $G \cup \{(u,v,\ell)\}$ is safe iff $(u,v,\ell)$ alone
-does not create a new $\SRC \to \SNK$ path under any $\pi \in \Poff$.
+\begin{corollary}[Incremental Safety Checking]
+\label{scor:safety}
+If $G$ is safe for $g$, then $G \cup \{(u,v,\ell)\}$ is safe for $g$ iff
+$(u,v,\ell)$ alone creates no $\SRC \to \SNK$ path under any $\pi \in \Poff$.
 \end{corollary}
 \begin{proof}
-Any $\Poff$-path created in $G \cup \{e\}$ must use $e$ (since $G$ was safe),
-so checking $e$ alone suffices.
+Any $\Poff$-path present in $G \cup \{e\}$ must use $e$, since $G$ was safe.
+Checking $e$ alone therefore suffices.
 \end{proof}
 
-\begin{theorem}[SOP Network Correctness; Thm.~4]
-The series-parallel network with one $N$-transistor series chain per
-$\pi \in \Pon$, all sharing $\SRC$/$\SNK$, correctly implements $f$.
+\begin{lemma}[Deletion Preserves Safety]
+\label{slem:deletion}
+If $G' \subseteq G$ and $G$ is safe for $g$, then $G'$ is safe for $g$.
+\end{lemma}
+\begin{proof}
+Every path in $G'$ is a path in $G$, so a violating path in $G'$ would also
+violate $G$.
+\end{proof}
+
+\begin{theorem}[SOP Network Correctness]
+\label{sthm:sop}
+Let $G_{\mathrm{SOP}}(g)$ be the series-parallel network with one
+$N$-transistor series chain per $\pi \in \Pon$, all sharing $\SRC$ and $\SNK$.
+Then $G_{\mathrm{SOP}}(g)$ correctly implements $g$.
 \end{theorem}
 \begin{proof}
-\textit{Coverage}: for $\pi\in\Pon$ all literals in the chain evaluate to 1,
-forming a complete path.
-\textit{Safety}: for $\pi'\in\Poff$ and chain $\pi\in\Pon$, since $\pi'\neq\pi$
-they differ at some bit $j^*$, so the $j^*$-th transistor does not conduct
-under $\pi'$, breaking every path.
+\textit{Coverage}: for $\pi \in \Pon$ every literal in the chain built for
+$\pi$ evaluates to $1$, forming a complete $\SRC \to \SNK$ path.
+\textit{Safety}: for $\pi' \in \Poff$ and any chain built for $\pi \in \Pon$,
+since $\pi' \neq \pi$ they differ at some bit $j^*$, so the $j^*$-th
+transistor of that chain does not conduct under $\pi'$.  Every chain is
+therefore broken.
 \end{proof}
 
-\begin{theorem}[Completeness of Safety-Masked Search; Thm.~5]
-For any valid $G^*$ implementing $f$, every permutation of $E(G^*)$ is a valid
+\begin{theorem}[Completeness of Safety-Masked Search]
+\label{sthm:complete}
+For any valid $G^*$ implementing $g$, every permutation of $E(G^*)$ is a valid
 trajectory under the safety mask.
 \end{theorem}
 \begin{proof}
-Let $e_1,\ldots,e_T$ be any ordering of $E(G^*)$ and $G_t = \{e_1,\ldots,e_t\}$.
-\textit{Base}: $G_0=\emptyset$ is safe.
-\textit{Step}: if $G_{t-1}$ is safe, then since $G_t \subseteq G^*$ any
-$\Poff$-path in $G_t$ would persist in $G^*$ (monotonicity), contradicting
-$G^*$'s safety; so $G_t$ is safe and $e_t$ is never rejected.
-\end{proof}
-
-\begin{lemma}[Deletion preserves safety; Lem.~6]
-Let $G' \subseteq G$ by deleting transistors. If $G$ conducts under no
-off-pattern, then neither does $G'$.
-\end{lemma}
-\begin{proof}
-Every path in $G'$ is a path in $G$; a violating path in $G'$ would violate $G$.
+Let $e_1,\ldots,e_T$ be any ordering of $E(G^*)$ and
+$G_t = \{e_1,\ldots,e_t\}$.
+\textit{Base}: $G_0 = \emptyset$ is safe.
+\textit{Step}: suppose $G_{t-1}$ is safe.  Since $G_t \subseteq G^*$, any
+$\Poff$-path in $G_t$ would persist in $G^*$ by monotonicity, contradicting
+the safety of $G^*$.  Hence $G_t$ is safe and $e_t$ is never rejected.
 \end{proof}
 
 % ============================================================
-\section{Hyperparameters}
-\label{app:hparam}
+\section{Implementation Details}
+\label{app:impl}
+
+\subsection{Placement Metrics}
+\label{app:metrics}
+
+Placement arranges the cell's transistors into two rows sharing a common gate
+column structure: NMOS devices (PDN) in the bottom row, PMOS devices (PUN) in
+the top row, both connected to the output node $\mathrm{ZN}$ and separated by
+routing tracks.
+Transistors adjacent in a row can share a diffusion region when their abutting
+terminals carry the same net, so the \emph{ordering} of devices within each
+row, and not only their number, determines the area the cell occupies.
+The five metrics entering $\Phi$ are:
+
+\begin{itemize}[leftmargin=*, topsep=2pt, itemsep=0pt]
+  \item \textbf{Cell width} $W_{\mathrm{cpp}}$: the number of poly columns the
+        cell spans, in \emph{contacted poly pitch} (CPP) units.
+  \item \textbf{Gate mismatches} $N_{\mathrm{gm}}$: column positions at which
+        the P-row and N-row devices are driven by different gate signals,
+        preventing a shared poly strip.
+  \item \textbf{Wire length} $W_{\mathrm{wl}}$: total intra-cell routing
+        length.
+  \item \textbf{Routing density} $D_{\mathrm{rt}}$: peak track congestion,
+        which bounds routability.
+  \item \textbf{Diffusion cuts} $N_{\mathrm{gap}}$: breaks in the row's
+        diffusion, required wherever consecutive devices cannot abut.
+        A row admits a cut-free placement exactly when its device graph has an
+        Euler path, so $N_{\mathrm{gap}}$ measures departure from that ideal.
+\end{itemize}
+
+\subsection{SPICE Generation}
+
+A complete PDN+PUN pair is encoded as a standard SPICE \texttt{.subckt}.
+NMOS transistors (\texttt{NMOS\_VTL}, $W = 90\,$nm, $L = 50\,$nm) implement
+the PDN with source at \texttt{GND}, drain at the output \texttt{ZN}, and
+internal nodes named \texttt{nd$k$}; PMOS transistors implement the PUN
+symmetrically between \texttt{VCC} and \texttt{ZN}.
+Gate signals map directly from literal labels: a positive literal $x_i$
+becomes port \texttt{$x_i$}, and a negative literal $\lnot x_i$ becomes the
+complemented port \texttt{$x_i$\_N}.
+Power nets are named \texttt{VCC}/\texttt{GND} to match ASTRAN's default
+supply identifiers.
+
+\subsection{ASTRAN Placement}
+
+ASTRAN places the combined netlist using Threshold Accepting with parameters
+fold \texttt{2 0}, SA quality~1, and $1$~attempt, and reports the five
+placement metrics of App.~\ref{app:metrics} on its ``Final cost'' line.
+The weights in $\Phi$ are left at the tool's own defaults, so minimizing
+$\Phi$ coincides exactly with minimizing ASTRAN's internal SA objective.
+Calls are dispatched over a thread pool, one process per complete pair.
+
+\subsection{Hyperparameters}
 
 \begin{table}[h]
 \centering
-\caption{Architecture and training hyperparameters.}
+\small
+\caption{Architecture and training hyperparameters.  ASTRAN place weights are
+         listed in the order $(w_c, w_m, w_w, w_d, w_g)$; the edge feature
+         dimension is $5/6/8$ for $N{=}3/4/6$.}
 \label{tab:hparam}
-\begin{tabular}{lc}
+\begin{tabular}{@{}lr@{}}
 \toprule
-\textbf{Hyperparameter}          & \textbf{Value} \\
+\textbf{Hyperparameter}            & \textbf{Value} \\
 \midrule
-MPNN hidden dim $d$              & 128 \\
-MPNN layers $L$                  & 3 \\
-Head MLP hidden dim              & 256 \\
-Post-MPNN self-attention         & yes (4 heads) \\
+MPNN hidden dim $d$                & 128 \\
+MPNN layers $L$                    & 3 \\
+Head MLP hidden dim                & 256 \\
+Post-MPNN self-attention           & 4 heads \\
 Node feature dim $d_\mathrm{node}$ & 4 \\
-Edge feature dim $d_\mathrm{edge}$ & $N+2$ \ ($5/6/8$ for $N{=}3/4/6$) \\
+Edge feature dim $d_\mathrm{edge}$ & $N+2$ \\
 \midrule
-Phase 1 lr (cosine)              & $2\times10^{-3}\!\to\!10^{-4}$ \\
-Phase 1 batch size               & 512 \\
-Phase 1 epochs                   & 200 \\
-Head-1 loss weight               & 2 \\
+Phase 1 lr (cosine)                & $2\times10^{-3}\!\to\!10^{-4}$ \\
+Phase 1 batch size                 & 512 \\
+Phase 1 epochs                     & 200 \\
+Head-1 loss weight                 & 2 \\
 \midrule
-Phase 2 lr                       & $10^{-4}$ \\
-Phase 2 trajectories $K$         & 16 \\
-PPO clip $\varepsilon$           & 0.2 \\
-Entropy coeff $\lambda_H$        & 0.05 \\
-Adaptive-anchor $\beta$          & 0.3 \\
-Restarts                         & 2 \\
-Max updates per target           & 200 \\
-Max steps $T_{\max}$             & 20 \\
+Phase 2 lr                         & $10^{-4}$ \\
+Phase 2 trajectories $K$           & 16 \\
+PPO clip $\varepsilon$             & 0.2 \\
+Entropy coeff $\lambda_H$          & 0.05 \\
+Adaptive-anchor $\beta$            & 0.3 \\
+Restarts                           & 2 \\
+Max updates per target             & 200 \\
+Max steps $T_{\max}$               & 20 \\
 \midrule
-Phase 3 lr                       & $3 \times 10^{-5}$ \\
-Phase 3 pairs $K$                & 8 \\
-ASTRAN SA quality                & 1 \\
-ASTRAN place weights $(w_c, w_m, w_w, w_d, w_g)$ & $(3,4,1,4,2)$ \\
-ASTRAN parallel workers          & 4 \\
+Phase 3 lr                         & $3 \times 10^{-5}$ \\
+Phase 3 pairs $K$                  & 8 \\
+ASTRAN SA quality                  & 1 \\
+ASTRAN place weights               & $(3,4,1,4,2)$ \\
+ASTRAN parallel workers            & 4 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+% ============================================================
+\section{Training Pipeline}
+\label{app:pipeline}
+
+\begin{figure}[h]
+\centering
+\resizebox{\columnwidth}{!}{\input{fig/training_flow}}
+\caption{Three-phase training pipeline of \method.
+Phase~1 initialises the \SGPN by NLL imitation on known-optimal circuits.
+Phase~2 finetunes toward minimum transistor count via PPO with adaptive
+reward $r = T^*(g)/T_{\mathrm{eff}}$ and a GRPO baseline.
+Phase~3 jointly synthesises PDN and PUN and uses the ASTRAN placement
+objective $\Phi$ directly as the reward.}
+\label{fig:training}
+\end{figure}
+
+\begin{algorithm}[t]
+\caption{\method{} / \SGPN Training (Phases 1--2)}
+\label{alg:train}
+\begin{algorithmic}[1]
+\Require Dataset $\mathcal{D}$, target list $\mathcal{F}$,
+         hyperparameters $K, M, \lambda_H, \varepsilon_{\mathrm{clip}}$
+\State Pretrain policy $\pi_\theta$ by NLL on $\mathcal{D}$ (Phase 1)
+\State Initialize frozen agent $\pi_{\mathrm{old}} \leftarrow \pi_\theta$
+\For{each epoch}
+  \State Sample batch of targets $\mathcal{B} \subseteq \mathcal{F}$
+  \For{each $g \in \mathcal{B}$}
+    \State Generate $K$ trajectories using $\pi_{\mathrm{old}}$
+    \State Reduce each complete network to $T_{\mathrm{eff}}$
+    \State Update $T^*(g)$ if a shorter complete network is found
+    \State Compute rewards $\{r_k\}$ and GRPO advantages $\{\hat{A}_k\}$
+  \EndFor
+  \State Compute batched PPO + entropy loss
+  \State Update $\theta$ via Adam
+  \If{step $\equiv 0 \pmod{M}$} $\pi_{\mathrm{old}} \leftarrow \pi_\theta$ \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{\method{} Phase~3: Physical-Aware Joint PDN+PUN RL}
+\label{alg:physical}
+\begin{algorithmic}[1]
+\Require Phase~2 policy $\pi_\theta$, function list $\mathcal{F}$,
+         ASTRAN binary, weights $(w_c, w_m, w_w, w_d, w_g)$
+\State Initialize $\Phi^*(f) \leftarrow \infty$ for all $f$
+\State $\pi_{\mathrm{old}} \leftarrow \pi_\theta$
+\For{each epoch}
+  \State Sample batch $\mathcal{B} \subseteq \mathcal{F}$
+  \For{each $f \in \mathcal{B}$}
+    \For{$k = 1, \ldots, K$}
+      \State $\tau_k^{\mathrm{PDN}} \leftarrow$ generate($\pi_{\mathrm{old}}$, $\lnot f(\mathbf{x})$)
+      \State $\tau_k^{\mathrm{PUN}} \leftarrow$ generate($\pi_{\mathrm{old}}$, $f(\lnot\mathbf{x})$)
+      \If{both complete}
+        \State $\Phi_k \leftarrow$ ASTRAN(SPICE($\tau_k^{\mathrm{PDN}}, \tau_k^{\mathrm{PUN}}$))
+        \State Update $\Phi^*(f)$ if $\Phi_k < \Phi^*(f)$
+        \State $r_k \leftarrow \Phi^*(f) / \Phi_k$
+      \Else\ $r_k \leftarrow 0$
+      \EndIf
+    \EndFor
+    \State GRPO: $\hat{A}_k \leftarrow (r_k - \bar{r}) / (\sigma_r + \varepsilon)$
+  \EndFor
+  \State Update $\theta$ via PPO + entropy loss on all steps
+  \If{step $\equiv 0 \pmod{M}$} $\pi_{\mathrm{old}} \leftarrow \pi_\theta$ \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
 
 \end{document}

@@ -2,118 +2,283 @@
 \label{sec:pre}
 
 % ─────────────────────────────────────────────────────────────────────────────
-\subsection{Transistor Networks and Switching Graphs}
-\label{sec:pre_def}
 
+\subsection{Transistor Networks}
+\label{sec:pre_def}
 Let $\mathbf{x} = (x_1, \ldots, x_N)$ be $N$ Boolean input variables and
 $\pi \in \{0,1\}^N$ an input pattern.
 The \emph{literal alphabet} is
-$\mathcal{L} = \{x_1, \lnot x_1, \ldots, x_N, \lnot x_N\}$.
-
-\begin{definition}[Switching Graph]
-A \emph{switching graph} is an undirected multigraph $H = (V, E)$ with two
-distinguished terminals $\SRC, \SNK \in V$.
-Each edge $e \in E$ is a \emph{switch} that is either open or closed;
-the graph \emph{conducts} $\SRC \to \SNK$ iff a path of closed switches
-connects $\SRC$ to $\SNK$.
-\end{definition}
+$\mathcal{L} = \{x_1, \lnot x_1, \ldots, x_N, \lnot x_N\}$, and a literal
+$\ell$ evaluates to $\ell(\pi) \in \{0,1\}$ under $\pi$.
 
 \begin{definition}[Transistor Network]
-A \emph{transistor network} is a switching graph $G = (V, E)$ in which each
-switch $(u, v, \ell) \in E$ is a transistor controlled by a literal
-$\ell \in \mathcal{L}$: the transistor is closed (conducts) under pattern $\pi$
-iff $\ell(\pi) = 1$.
+\label{def:tnet}
+A \emph{transistor network} is an undirected multigraph $G = (V, E)$ with two
+distinguished terminals $\SRC \neq \SNK \in V$ and edges
+$E \subseteq \{(u, v, \ell) : u \neq v \in V,\ \ell \in \mathcal{L}\}$, each
+edge being a transistor controlled by the literal $\ell$.
+Under an input pattern $\pi$ a transistor is \emph{closed} iff
+$\ell(\pi) = 1$, and $G$ \emph{conducts} under $\pi$ iff some
+$\SRC$--$\SNK$ path uses only closed transistors.
+Edges are unordered, so $(u,v,\ell)$ and $(v,u,\ell)$ denote the same
+transistor; the orientation in our action space (Section~\ref{sec:mdp}) is an
+artifact of the generation order, not of the network.
 \end{definition}
 
-Let $\Pon = f^{-1}(1)$ and $\Poff = f^{-1}(0)$ for Boolean function
-$f:\{0,1\}^N\to\{0,1\}$.
-A transistor network $G$ \emph{correctly implements} $f$ iff:
-\begin{align*}
-  \forall\,\pi \in \Pon  &: G \text{ conducts } \SRC\to\SNK
-                            \text{ under } \pi, \tag{Coverage}\\
-  \forall\,\pi \in \Poff &: G \text{ does not conduct }
-                            \SRC\to\SNK \text{ under } \pi. \tag{Safety}
-\end{align*}
-The \emph{synthesis problem} is to find a correct implementation with
-minimum transistor count: $\min\{|E| : G \text{ correctly implements } f\}$.
+\paragraph{Correctness.}
+For a Boolean function $g : \{0,1\}^N \to \{0,1\}$, let $\Pon = g^{-1}(1)$ and
+$\Poff = g^{-1}(0)$ denote its on- and off-patterns.
+A transistor network $G$ \emph{covers} $g$ if it conducts under every
+$\pi \in \Pon$ (\emph{coverage}), and is \emph{safe} for $g$ if it conducts
+under no $\pi \in \Poff$ (\emph{safety}); it \emph{correctly implements} $g$
+iff both hold.
+We name the two conditions separately because safety applies to \emph{partial}
+networks as well: every intermediate state of our generative process is safe,
+whereas coverage is attained only at termination.
 
-\paragraph{Prior work.}
-Exact SAT-based solvers~\cite{muSTNet,miniTNtk} optimally solve each function
-independently but scale exponentially with $N$ and provide no cross-function
-generalization.
-MCTS-based approaches~\cite{mctsptns} improve scalability but remain per-instance
-search procedures.
-No existing method learns a generalizable synthesis policy.
+% \subsection{Switching Graphs and Transistor Networks}
+% \label{sec:pre_def}
+% Let $\mathbf{x} = (x_1, \ldots, x_N)$ be $N$ Boolean input variables and
+% $\pi \in \{0,1\}^N$ an input pattern.
+% The \emph{literal alphabet} is
+% $\mathcal{L} = \{x_1, \lnot x_1, \ldots, x_N, \lnot x_N\}$, and a literal
+% $\ell$ evaluates to $\ell(\pi) \in \{0,1\}$ under $\pi$.
 
-% ─────────────────────────────────────────────────────────────────────────────
-\subsection{CMOS Cell Synthesis as Dual Switching Network Problems}
-\label{sec:pre_dual}
+% \begin{definition}[Switching Graph]
+% \label{def:swgraph}
+% A \emph{switching graph} is an undirected multigraph $G = (V, E)$ with two
+% distinguished terminals $\SRC \neq \SNK \in V$, in which each edge is a
+% \emph{switch}.
+% Given a configuration $\sigma : E \to \{\text{open}, \text{closed}\}$, the
+% graph \emph{conducts} $\SRC \to \SNK$ under $\sigma$ iff some $\SRC$--$\SNK$
+% path uses only closed switches.
+% \end{definition}
 
-A CMOS standard cell implementing $f(\mathbf{x})$ consists of two complementary
-switching networks realized with different transistor types:
+% \begin{definition}[Transistor Network]
+% \label{def:tnet}
+% A \emph{transistor network} is a switching graph whose edges carry literal
+% labels, $E \subseteq \{(u, v, \ell) : u \neq v \in V,\ \ell \in \mathcal{L}\}$,
+% each edge being a transistor controlled by $\ell$.
+% An input pattern $\pi$ induces the configuration $\sigma_\pi$ in which
+% $(u, v, \ell)$ is closed iff $\ell(\pi) = 1$; we write ``$G$ conducts under
+% $\pi$'' for conduction under $\sigma_\pi$.
+% Edges are unordered, so $(u,v,\ell)$ and $(v,u,\ell)$ denote the same
+% transistor; the orientation in our action space
+% (Section~\ref{sec:mdp}) is an artifact of the generation order, not of the
+% network.
+% \end{definition}
+
+% \paragraph{Correctness.}
+% For a Boolean function $g : \{0,1\}^N \to \{0,1\}$, let $\Pon = g^{-1}(1)$ and
+% $\Poff = g^{-1}(0)$ denote its on- and off-patterns.
+% A transistor network $G$ \emph{covers} $g$ if it conducts under every
+% $\pi \in \Pon$ (\emph{coverage}), and is \emph{safe} for $g$ if it conducts
+% under no $\pi \in \Poff$ (\emph{safety}); it \emph{correctly implements} $g$
+% iff both hold.
+% We name the two conditions separately because safety applies to \emph{partial}
+% networks as well: every intermediate state of our generative process is safe,
+% whereas coverage is attained only at termination.
+
+\subsection{Two Synthesis Problems}
+\label{sec:pre_prob}
+
+\paragraph{Problem A: network synthesis.}
+Given a switching function $g$, find a smallest transistor network that
+correctly implements it,
+\[
+  \argmin\ \{\, |E(G)| \;:\; G \text{ correctly implements } g \,\}.
+\]
+The feasible set is non-empty (Theorem~\ref{thm:sop}), so the minimum is well
+defined.  This is the problem addressed by Phases~1--2 of \method.
+
+\paragraph{Problem B: cell synthesis.}
+A CMOS standard cell implementing $f(\mathbf{x})$ consists of two
+complementary networks realized with different transistor types.
 
 \begin{definition}[PDN and PUN]
+\label{def:pdnpun}
 The \emph{pull-down network} (PDN) is an NMOS transistor network connected
-between $\mathrm{GND}$ and the output $\mathrm{ZN}$.
-The \emph{pull-up network} (PUN) is a PMOS transistor network connected
-between $\mathrm{VDD}$ and $\mathrm{ZN}$.
-The cell is correct iff the PDN pulls $\mathrm{ZN}$ low when $f=0$ and the
-PUN pulls $\mathrm{ZN}$ high when $f=1$.
+between $\mathrm{GND}$ and the output $\mathrm{ZN}$; the \emph{pull-up
+network} (PUN) is a PMOS transistor network connected between $\mathrm{VDD}$
+and $\mathrm{ZN}$.
+The cell is correct iff the PDN pulls $\mathrm{ZN}$ low whenever $f = 0$ and
+the PUN pulls $\mathrm{ZN}$ high whenever $f = 1$.
 \end{definition}
 
-The following proposition shows that synthesizing a CMOS cell for $f$
-decomposes exactly into two independent switching network synthesis problems.
+Problem~B is not a new problem: it decomposes into two instances of
+Problem~A.
 
 \begin{proposition}[Dual Switching Network Equivalence]
 \label{prop:dual}
-A CMOS cell correctly implements $f(\mathbf{x})$ if and only if:
-\begin{enumerate}[leftmargin=*, topsep=2pt, itemsep=1pt]
-  \item The PDN correctly implements $\lnot f(\mathbf{x})$ as a switching
-        network, i.e., PDN on-patterns $= \Poff$.
-  \item The PUN correctly implements $f(\lnot\mathbf{x})$ as a switching
-        network, i.e., PUN on-patterns $= \{\lnot\pi : \pi \in \Pon\}$.
-\end{enumerate}
+Let $\Pon$ and $\Poff$ denote the on- and off-patterns of the cell function
+$f$.
+A CMOS cell correctly implements $f(\mathbf{x})$ if and only if its PDN
+correctly implements $\lnot f(\mathbf{x})$, with on-patterns $\Poff$, and its
+PUN correctly implements $f(\lnot\mathbf{x})$, with on-patterns
+$\{\lnot\pi : \pi \in \Pon\}$.
 \end{proposition}
 
-\begin{proof}
-(\textit{PDN})
-An NMOS transistor with gate $x_i$ conducts when $x_i=1$, so NMOS
-network semantics are identical to the switching network model.
-The PDN must pull $\mathrm{ZN}$ low when $f(\mathbf{x})=0$, i.e., it must
-conduct for all $\pi \in \Poff$.
-It must not pull low when $f(\mathbf{x})=1$, i.e., it must not conduct for
-$\pi \in \Pon$.
-Hence the PDN implements $\lnot f(\mathbf{x})$ with on-patterns $= \Poff$.
+\noindent
+The proof, together with a worked AND2 decomposition, is given in the
+supplementary material (App.~A--B).
+Proposition~\ref{prop:dual} is what allows a \emph{single} policy to serve the
+whole framework: the PDN and PUN are two instances of Problem~A that share the
+same Boolean structure and differ only in their on/off pattern sets, so a
+policy conditioned on those sets is agnostic to transistor type.
+This is the foundation for the joint PDN+PUN training of Phase~3
+(Section~\ref{sec:physical}).
 
-(\textit{PUN})
-A PMOS transistor with gate $x_i$ conducts when $x_i=0$, which is equivalent
-to a switch controlled by $\lnot x_i$.
-Substituting $y_i = \lnot x_i$, the PMOS network conducts under $\mathbf{y}$
-iff $f(\lnot\mathbf{y})=1$ — that is, iff $\mathbf{y} \in
-\{\lnot\pi : \pi \in \Pon\}$.
-In terms of the original signal $\mathbf{x}=\lnot\mathbf{y}$, the PUN must
-conduct when $f(\mathbf{x})=1$ with complemented control signals,
-implementing $f(\lnot\mathbf{x})$ with on-patterns
-$= \{\lnot\pi : \pi \in \Pon\}$.
-\end{proof}
 
-A worked AND2 decomposition, with the corresponding parallel-NMOS /
-series-PMOS dual circuits, is given in the supplementary material (App.~A).
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection{Physical Evaluation of a Placed Cell}
+\label{sec:pre_phys}
 
-Proposition~\ref{prop:dual} has a key consequence for our framework:
-\emph{synthesizing a full CMOS cell is equivalent to independently solving
-two standard switching network synthesis problems} — one for PDN and one for PUN.
-Both problems share the same Boolean structure and can be solved by the same
-policy; only their on/off pattern sets differ.
-This is the foundation for the joint PDN+PUN training in Phase~3 of \method.
+A solved instance of Problem~B is not yet a layout.
+Its transistors must be placed into two rows, and because adjacent devices
+share a diffusion region only when their abutting terminals carry the same
+net, the \emph{ordering} within each row, and not only the device count,
+determines the area the cell occupies.
+Quality is therefore measured on the placed cell by five metrics: cell width
+in contacted poly pitch (CPP) units, gate mismatches between the P and N rows,
+wire length, routing density, and diffusion cuts. Definitions of the five metrics are given in App.~C.
+We use ASTRAN~\cite{astran}, a standard-cell layout tool, to place each
+synthesized PDN+PUN pair and to report these quantities; their weighted sum
+$\Phi$ (Eq.~\ref{eq:phi}) is the objective Phase~3 of \method{} minimizes
+directly as the RL reward (Section~\ref{sec:physical}).
 
-\paragraph{Placement and routing.}
-After synthesis, transistors are placed into a standard-cell layout: NMOS
-(PDN) in the bottom row, PMOS (PUN) in the top row, each sharing a
-common output node $\mathrm{ZN}$ and separated by routing tracks.
-Key physical metrics include cell width in \emph{contacted poly pitch} (CPP)
-units, gate mismatches between the P and N rows, wire length, routing density,
-and diffusion cuts (gaps in the Euler path).
-We use ASTRAN~\cite{astran} to evaluate placement quality via a weighted
-objective $\Phi$ (defined in Section~\ref{sec:physical}), and minimize
-$\Phi$ directly as the RL reward in Phase~3.
+
+
+% \subsection{Transistor Networks and Switching Graphs}
+% \label{sec:pre_def}
+
+% Let $\mathbf{x} = (x_1, \ldots, x_N)$ be $N$ Boolean input variables and
+% $\pi \in \{0,1\}^N$ an input pattern.
+% The \emph{literal alphabet} is
+% $\mathcal{L} = \{x_1, \lnot x_1, \ldots, x_N, \lnot x_N\}$.
+
+% \begin{definition}[Switching Graph]
+% A \emph{switching graph} is an undirected multigraph $H = (V, E)$ with two
+% distinguished terminals $\SRC, \SNK \in V$.
+% Each edge $e \in E$ is a \emph{switch} that is either open or closed;
+% the graph \emph{conducts} $\SRC \to \SNK$ iff a path of closed switches
+% connects $\SRC$ to $\SNK$.
+% \end{definition}
+
+% \begin{definition}[Transistor Network]
+% A \emph{transistor network} is a switching graph $G = (V, E)$ in which each
+% switch $(u, v, \ell) \in E$ is a transistor controlled by a literal
+% $\ell \in \mathcal{L}$: the transistor is closed (conducts) under pattern $\pi$
+% iff $\ell(\pi) = 1$.
+% \end{definition}
+
+% % Let $\Pon = f^{-1}(1)$ and $\Poff = f^{-1}(0)$ for Boolean function
+% % $f:\{0,1\}^N\to\{0,1\}$.
+% % A transistor network $G$ \emph{correctly implements} $f$ iff:
+% % \begin{align*}
+% %   \forall\,\pi \in \Pon  &: G \text{ conducts } \SRC\to\SNK
+% %                             \text{ under } \pi, \tag{Coverage}\\
+% %   \forall\,\pi \in \Poff &: G \text{ does not conduct }
+% %                             \SRC\to\SNK \text{ under } \pi. \tag{Safety}
+% % \end{align*}
+% % The \emph{synthesis problem} is to find a correct implementation with
+% % minimum transistor count: $\min\{|E| : G \text{ correctly implements } f\}$.
+% For a Boolean function $f : \{0,1\}^N \to \{0,1\}$, let
+% $\Pon = f^{-1}(1)$ and $\Poff = f^{-1}(0)$.
+% A transistor network $G$ \emph{covers} $f$ if it conducts under every
+% on-pattern, and is \emph{safe} for $f$ if it conducts under no off-pattern:
+% \begin{align*}
+%   \forall\,\pi \in \Pon  &: G \text{ conducts } \SRC\to\SNK
+%                             \text{ under } \pi, \tag{Coverage}\\
+%   \forall\,\pi \in \Poff &: G \text{ does not conduct }
+%                             \SRC\to\SNK \text{ under } \pi. \tag{Safety}
+% \end{align*}
+% $G$ \emph{correctly implements} $f$ iff it both covers $f$ and is safe for $f$.
+% We name the two conditions separately because safety applies to \emph{partial}
+% networks as well: every intermediate state of our generative process is safe,
+% while coverage is attained only at termination.
+% The \emph{synthesis problem} is to find a correct implementation of minimum
+% size, $\argmin\{|E(G)| : G \text{ correctly implements } f\}$; a solution
+% always exists (Theorem~\ref{thm:sop}).
+
+
+% \paragraph{Prior work.}
+% % Exact SAT-based solvers~\cite{muSTNet,miniTNtk} optimally solve each function
+% % independently but scale exponentially with $N$ and provide no cross-function
+% % generalization.
+% % MCTS-based approaches~\cite{mctsptns} improve scalability but remain per-instance
+% % search procedures.
+% % No existing method learns a generalizable synthesis policy.
+% \textcolor{blue}{don't mention prior work here, cover in intro instead}
+
+% % ─────────────────────────────────────────────────────────────────────────────
+% \subsection{CMOS Cell Synthesis as Dual Switching Network Problems}
+% \label{sec:pre_dual}
+
+% A CMOS standard cell implementing $f(\mathbf{x})$ consists of two complementary
+% switching networks realized with different transistor types:
+
+% \begin{definition}[PDN and PUN]
+% The \emph{pull-down network} (PDN) is an NMOS transistor network connected
+% between $\mathrm{GND}$ and the output $\mathrm{ZN}$.
+% The \emph{pull-up network} (PUN) is a PMOS transistor network connected
+% between $\mathrm{VDD}$ and $\mathrm{ZN}$.
+% The cell is correct iff the PDN pulls $\mathrm{ZN}$ low when $f=0$ and the
+% PUN pulls $\mathrm{ZN}$ high when $f=1$.
+% \end{definition}
+
+% The following proposition shows that synthesizing a CMOS cell for $f$
+% decomposes exactly into two independent switching network synthesis problems.
+
+% \begin{proposition}[Dual Switching Network Equivalence]
+% \label{prop:dual}
+% A CMOS cell correctly implements $f(\mathbf{x})$ if and only if:
+% \begin{enumerate}[leftmargin=*, topsep=2pt, itemsep=1pt]
+%   \item The PDN correctly implements $\lnot f(\mathbf{x})$ as a switching
+%         network, i.e., PDN on-patterns $= \Poff$.
+%   \item The PUN correctly implements $f(\lnot\mathbf{x})$ as a switching
+%         network, i.e., PUN on-patterns $= \{\lnot\pi : \pi \in \Pon\}$.
+% \end{enumerate}
+% \end{proposition}
+
+% \begin{proof}
+% (\textit{PDN})
+% An NMOS transistor with gate $x_i$ conducts when $x_i=1$, so NMOS
+% network semantics are identical to the switching network model.
+% The PDN must pull $\mathrm{ZN}$ low when $f(\mathbf{x})=0$, i.e., it must
+% conduct for all $\pi \in \Poff$.
+% It must not pull low when $f(\mathbf{x})=1$, i.e., it must not conduct for
+% $\pi \in \Pon$.
+% Hence the PDN implements $\lnot f(\mathbf{x})$ with on-patterns $= \Poff$.
+
+% (\textit{PUN})
+% A PMOS transistor with gate $x_i$ conducts when $x_i=0$, which is equivalent
+% to a switch controlled by $\lnot x_i$.
+% Substituting $y_i = \lnot x_i$, the PMOS network conducts under $\mathbf{y}$
+% iff $f(\lnot\mathbf{y})=1$ — that is, iff $\mathbf{y} \in
+% \{\lnot\pi : \pi \in \Pon\}$.
+% In terms of the original signal $\mathbf{x}=\lnot\mathbf{y}$, the PUN must
+% conduct when $f(\mathbf{x})=1$ with complemented control signals,
+% implementing $f(\lnot\mathbf{x})$ with on-patterns
+% $= \{\lnot\pi : \pi \in \Pon\}$.
+% \end{proof}
+
+% A worked AND2 decomposition, with the corresponding parallel-NMOS /
+% series-PMOS dual circuits, is given in the supplementary material (App.~A).
+
+% Proposition~\ref{prop:dual} has a key consequence for our framework:
+% \emph{synthesizing a full CMOS cell is equivalent to independently solving
+% two standard switching network synthesis problems} — one for PDN and one for PUN.
+% Both problems share the same Boolean structure and can be solved by the same
+% policy; only their on/off pattern sets differ.
+% This is the foundation for the joint PDN+PUN training in Phase~3 of \method.
+
+% \paragraph{Placement and routing.}
+% After synthesis, transistors are placed into a standard-cell layout: NMOS
+% (PDN) in the bottom row, PMOS (PUN) in the top row, each sharing a
+% common output node $\mathrm{ZN}$ and separated by routing tracks.
+% Key physical metrics include cell width in \emph{contacted poly pitch} (CPP)
+% units, gate mismatches between the P and N rows, wire length, routing density,
+% and diffusion cuts (gaps in the Euler path).
+% We use ASTRAN~\cite{astran} to evaluate placement quality via a weighted
+% objective $\Phi$ (defined in Section~\ref{sec:physical}), and minimize
+% $\Phi$ directly as the RL reward in Phase~3.
