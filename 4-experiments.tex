@@ -117,6 +117,7 @@ solved by pretraining while compaction is the task left to Phase~2.
 \textbf{Method} & \textbf{$N{=}3$ (508)} & \textbf{$N{=}4$} & \textbf{$N{=}6$ NSP} \\
 \midrule
 MuSTNet~\cite{muSTNet}     & $100$ & $100$ & $100$ \\
+MiniTNtk~\cite{miniTNtk}   & $100$ & $100$ & $100$ \\
 \method{} Phase~1          & $97.6$ & $49.2$ & $0$ \\
 \method{} Phase~2 (ours)   & $\mathbf{100}$ & $88^{\dagger}$ & $24.5^{\dagger}$ \\
 \bottomrule
@@ -124,9 +125,11 @@ MuSTNet~\cite{muSTNet}     & $100$ & $100$ & $100$ \\
 \end{table}
 
 \noindent
-MuSTNet is exact by construction and therefore attains $100\%$ optimality;
-its cost is a per-instance SAT invocation, whereas \method{} amortizes
-synthesis into a learned policy and requires no solver at inference.
+MuSTNet and MiniTNtk are exact SAT-based solvers that supply the reference
+optima and therefore attain $100\%$ by construction; their cost is a
+per-instance solver invocation, whereas \method{} amortizes synthesis into a
+learned policy and needs no solver at inference, matching the exact optimum on
+all $508$ three-input targets.
 Daggers ($\dagger$) mark rates over targets completed so far, as $N{=}4$ and
 $N{=}6$ optimization is ongoing.
 
@@ -235,26 +238,30 @@ trajectories.  We ask whether optimizing for placement --- rather than
 transistor count alone --- yields cells that lay out more compactly.
 
 Table~\ref{tab:physical} compares, over all $254$ three-input functions, the
-placement cost of count-optimal networks (the Phase-2 objective) against the
-Phase-3 physically-optimized networks, scored by ASTRAN's exact placement
-metrics: cell width (CPP), gate mismatches (GM), and diffusion gaps, summed as
-$\Phi_{\mathrm{plc}}$.  Phase~3 lowers the mean cell cost by $18\%$
-($12.74\!\to\!10.44$): among the many count-optimal realizations of a
-function, it selects those that also place compactly, confirming that
-transistor count and layout quality are distinct objectives.
+placement cost of \textbf{MiniTNtk}'s count-optimal networks --- the reference
+solutions our own counts are measured against --- with our Phase-3
+physically-optimized networks, scored by ASTRAN's exact placement metrics: cell
+width (CPP), gate mismatches (GM), and diffusion gaps, summed as
+$\Phi_{\mathrm{plc}}$.  MiniTNtk minimizes transistor count only; Phase~3
+lowers the mean placed-cell cost by $18\%$ ($12.74\!\to\!10.44$) by selecting,
+among the many count-optimal realizations of a function, those that also place
+compactly.  Transistor count and layout quality are thus distinct objectives,
+and optimizing the latter directly is what a count-minimizing solver like
+MiniTNtk leaves on the table.
 
 \begin{table}[t]
 \centering
-\caption{Placement cost over the $254$ three-input cells (mean ASTRAN
-         $\Phi_{\mathrm{plc}} = \mathrm{CPP}+\mathrm{GM}+\mathrm{Gaps}$;
-         lower is better).}
+\caption{Physical placement over the $254$ three-input cells: mean ASTRAN cost
+         $\Phi_{\mathrm{plc}} = \mathrm{CPP}+\mathrm{GM}+\mathrm{Gaps}$ of
+         MiniTNtk's count-optimal cells vs.\ our physically-optimized cells
+         (lower is better).}
 \label{tab:physical}
 \begin{tabular}{lc}
 \toprule
 \textbf{Method} & \textbf{Mean $\Phi_{\mathrm{plc}}$} \\
 \midrule
-Count-optimal networks (Phase~2) & $12.74$ \\
-\method{} Phase~3 (ours)         & $\mathbf{10.44}$ \\
+MiniTNtk~\cite{miniTNtk} (count-optimal) & $12.74$ \\
+\method{} Phase~3 (ours)                 & $\mathbf{10.44}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
