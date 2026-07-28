@@ -1,19 +1,24 @@
 \section{Introduction}
 \label{sec:intro}
 
-Transistor network synthesis is a foundational step in CMOS standard-cell
-design.
+Transistor network synthesis is a foundational step in the design and
+customization of CMOS standard cells~\cite{asap7,bonncell,nvcell}.
 Given a Boolean function $f$, the goal is to build a minimum-transistor
 switching network—an undirected graph whose edges represent transistors
 and whose source-to-sink connectivity implements $f$.
 The synthesized topology directly determines transistor count,
-diffusion-sharing opportunities, and downstream layout quality;
+diffusion-sharing opportunities, and downstream layout
+quality~\cite{switchcraft,bonncell};
 even a single extra transistor can degrade area, power, and timing
-after placement and routing.
+after placement and routing, so automatic cell-layout tools depend on a
+compact transistor network at their input.
 
 \paragraph{Limitations of existing methods.}
-Exact SAT-based methods~\cite{muSTNet,miniTNtk} can provably find
-minimum-transistor solutions but solve each function from scratch,
+Transistor-network synthesis ranges from heuristic switch-graph
+construction~\cite{kagaris2007,switchcraft,motox} to exact SAT-based
+solvers~\cite{muSTNet,miniTNtk} that can provably find
+minimum-transistor solutions.
+All of them, however, solve each function from scratch,
 with no reuse across instances.
 Runtime grows exponentially with the number of variables, and the methods
 offer no generalization to unseen functions.
@@ -30,6 +35,10 @@ compact representation of the target function.
 A single policy trained over a distribution of Boolean functions
 generalizes at inference time to new functions without any per-instance
 search.
+Learning has recently reshaped many stages of the design
+flow~\cite{mlforeda}, including reinforcement-learning-driven standard-cell
+layout~\cite{nvcell}, yet transistor-network synthesis itself has remained
+the domain of per-instance exact solvers.
 
 \paragraph{Key technical ideas.}
 \textbf{(1) Theoretical guarantees by construction.}
