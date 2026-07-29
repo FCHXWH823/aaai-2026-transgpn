@@ -7,6 +7,7 @@
                      font=\scriptsize},
     tr/.style     = {thick},
     ontr/.style   = {line width=1.5pt, green!55!black},
+    term/.style   = {font=\scriptsize},
     head/.style   = {draw, rounded corners=3pt, minimum width=1.35cm,
                      minimum height=0.72cm, align=center, fill=blue!8,
                      font=\scriptsize},
@@ -18,33 +19,52 @@
     lbl/.style    = {font=\scriptsize, text=gray},
     pl/.style     = {font=\scriptsize\bfseries},
 ]
+\ctikzset{transistors/scale=0.55}
 
 %% ======================= Panel (a): worked example =======================
-\node[pl] (pa) at (-3.95, 1.05) {(a)};
-\node[net] (src) at (-3.0, 0.45) {$S$};
-\node[net] (na)  at (-1.7, 0.45) {$a$};
-\node[net] (snk) at (-0.4, 0.45) {$T$};
-% series chain x1 . x2  (green = a conducting path)
-\draw[ontr] (src) -- (na) node[midway, above, font=\scriptsize, text=black] {$x_1$};
-\draw[ontr] (na)  -- (snk) node[midway, above, font=\scriptsize, text=black] {$x_2$};
-% parallel shortcut x3
-\draw[tr] (src) to[bend right=32]
-    node[midway, below=1pt, font=\scriptsize] {$x_3$} (snk);
-% annotation to the right, well clear of the graph
-\node[align=left, anchor=west, font=\scriptsize] at (0.55, 0.45)
-    {$g = x_1x_2 + x_3$.\\[1pt]
-     A conducting $S\!\to\!T$ path\\
-     appears \emph{exactly} on the\\
-     on-patterns of $g$ (green:\\
-     the path for input $110$).};
+\node[pl] (pa) at (-4.55, 1.15) {(a)};
+
+%% --- left: NMOS switch network for g = x1 x2 + x3 ---
+% terminal rails
+\draw[tr] (-4.25,-0.20) -- (-4.25,0.60);  \node[term] at (-4.45,0.48) {$S$};
+\draw[tr] (-0.95,-0.20) -- (-0.95,0.60);  \node[term] at (-0.75,0.48) {$T$};
+% top branch: S -- t1(x1) -- a -- t2(x2) -- T
+\node[nmos, rotate=-90] (t1) at (-3.55,0.45) {};
+\node[net, fill=white, minimum size=3.6mm] (ga) at (-2.60,0.45) {\scriptsize$a$};
+\node[nmos, rotate=-90] (t2) at (-1.70,0.45) {};
+\draw[tr] (-4.25,0.45) -- (t1.source);
+\draw[tr] (t1.drain) -- (ga);
+\draw[tr] (ga) -- (t2.source);
+\draw[tr] (t2.drain) -- (-0.95,0.45);
+\node[term, above=1pt] at (t1.gate) {$x_1$};
+\node[term, above=1pt] at (t2.gate) {$x_2$};
+% bottom branch: S -- t3(x3) -- T  (gate points down, label below)
+\node[nmos, rotate=90] (t3) at (-2.60,-0.15) {};
+\draw[tr] (-4.25,-0.15) -- (t3.drain);
+\draw[tr] (t3.source) -- (-0.95,-0.15);
+\node[term, below=1pt] at (t3.gate) {$x_3$};
+
+%% --- middle: "modeled as" arrow ---
+\draw[arr, line width=1pt] (-0.55,0.20) -- (0.35,0.20);
+\node[lbl, align=center] at (-0.10,0.52) {modeled\\as};
+
+%% --- right: switching graph (same network) ---
+\node[net] (src) at (0.85,0.45) {$S$};
+\node[net] (nb)  at (2.05,0.45) {$a$};
+\node[net] (snk) at (3.25,0.45) {$T$};
+\draw[ontr] (src) -- (nb) node[midway, above, font=\scriptsize, text=black] {$x_1$};
+\draw[ontr] (nb)  -- (snk) node[midway, above, font=\scriptsize, text=black] {$x_2$};
+\draw[tr] (src) to[bend right=26]
+    node[midway, below=0pt, font=\scriptsize] {$x_3$} (snk);
+\node[lbl, align=center] at (0.05,-0.42) {each transistor $\leftrightarrow$ one edge};
 
 % divider between panels
-\draw[gray!45, dashed] (-4.25, -0.35) -- (4.35, -0.35);
+\draw[gray!45, dashed] (-4.75, -0.64) -- (4.35, -0.64);
 
 %% ================= Panel (b): SGPN sequential synthesis ==================
-\node[pl] (pb) at (-3.95, -0.75) {(b)};
+\node[pl] (pb) at (-4.55, -1.02) {(b)};
 
-\node[bus, fill=green!8, minimum width=7.9cm] (ug) at (0.05, -1.05)
+\node[bus, fill=green!8, minimum width=7.9cm] (ug) at (0.05, -1.32)
     {Unified graph $H_t = G_t \cup C_g$\; (partial network $+$ SOP target)};
 \node[bus, fill=gray!10, minimum width=7.9cm, below=0.26cm of ug] (mpnn)
     {\textbf{MPNN} backbone ($L$ layers)\;$\Rightarrow$\;node emb.\ $\mathbf{h}_i$,\;
