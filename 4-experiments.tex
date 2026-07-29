@@ -98,8 +98,8 @@ conduction paths, imitation alone recovers exact-optimal synthesis at this
 width, and reinforcement learning is needed only for a small residual.
 
 At $N=4$ the residual is substantially larger and Phase~2 carries more of the
-load; optimization over the full sweep is ongoing and we report the rate over
-completed targets.
+load; we report the optimality rate over the evaluated subset of targets and
+leave the full four-input sweep to future work.
 At $N=6$ the two phases separate cleanly: the pretrained policy produces a
 \emph{correct} network for $50$ of $53$ NSP functions but at a mean reduced
 cost of $19.0$ transistors against optima near $7$, so completion is largely
@@ -108,7 +108,8 @@ solved by pretraining while compaction is the task left to Phase~2.
 \begin{table}[t]
 \centering
 \caption{Optimality rate (fraction of targets reaching the exact SAT optimum).
-         $N{=}4$ is over completed targets; optimization is ongoing.}
+         Rates marked $\dagger$ ($N{=}4$, $N{=}6$) are over the evaluated
+         subset of each sweep.}
 \label{tab:main}
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{lccc}
@@ -128,8 +129,8 @@ optima and therefore attains $100\%$ by construction; its cost is a
 per-instance solver invocation, whereas \method{} amortizes synthesis into a
 learned policy and needs no solver at inference, matching the exact optimum on
 all $508$ three-input targets.
-Daggers ($\dagger$) mark rates over targets completed so far, as $N{=}4$ and
-$N{=}6$ optimization is ongoing.
+Daggers ($\dagger$) mark rates over the evaluated subset of the $N{=}4$ and
+$N{=}6$ sweeps.
 
 \subsection{Ablation: Supervision Order Dominates Architecture}
 \label{sec:ablation_order}
@@ -265,6 +266,6 @@ MiniTNtk (count-optimal) & $12.74$          & $19.80$ \\
 \end{tabular}
 \end{table}
 
-The routing-aware objective (adding wire length and routing density under real
-ASTRAN routing) is ongoing.
+A routing-aware objective (wire length and routing density under real ASTRAN
+routing) is left to future work.
 
