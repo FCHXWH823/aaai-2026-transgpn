@@ -204,14 +204,14 @@ rather than failing to compact.
 Although top-$1$ Head-1 accuracy is $0.50$ on $6$-input states, the correct
 node lies in the top $3$ candidates $78\%$ of the time and the top $5$ $89\%$
 (mean rank $1.6$ of ${\sim}64$).  Since Phase~2 \emph{samples} rather than
-taking the argmax, this top-$k$ mass---not top-$1$ accuracy---is why a
+taking the argmax, this top-$k$ mass, not top-$1$ accuracy, is why a
 $0.50$-accuracy prior still finetunes effectively.
 
 \paragraph{Where source selection fails.}
 Accuracy falls from $0.62$ on small partial networks to $0.36$ on mid-sized
 ones, and is lower for interior-node targets ($0.37$) than rails ($0.66$),
-which the model over-predicts.  Errors are confident rather than near-misses---a
-learning failure that richer per-node features could address.
+which the model over-predicts.  Errors are confident rather than near-misses,
+a learning failure that richer per-node features could address.
 
 \paragraph{Representational ceiling.}
 A Weisfeiler--Leman refinement colours every candidate node distinctly within
@@ -230,8 +230,8 @@ Phase~3 finetunes the joint PDN+PUN policy against the ASTRAN placement
 objective (Section~\ref{sec:physical}).  A target is now a \emph{function}:
 the objective exists only once \emph{both} networks complete, since ASTRAN
 places the combined cell, and the reward is assigned jointly to the two
-trajectories.  We ask whether optimizing for placement --- rather than
-transistor count alone --- yields cells that lay out more compactly.
+trajectories.  We ask whether optimizing for placement, rather than
+transistor count alone, yields cells that lay out more compactly.
 
 Table~\ref{tab:physical} compares, over all $254$ three-input functions, the
 $\Phi_{\mathrm{plc}}$ of \textbf{MiniTNtk}'s count-optimal networks with our

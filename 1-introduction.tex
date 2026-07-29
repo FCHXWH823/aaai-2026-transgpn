@@ -4,7 +4,7 @@
 Transistor network synthesis is a foundational step in the design and
 customization of CMOS standard cells~\cite{asap7,bonncell,nvcell}.
 Given a Boolean function $f$, the goal is to build a minimum-transistor
-switching network—an undirected graph whose edges represent transistors
+switching network, an undirected graph whose edges represent transistors
 and whose source-to-sink connectivity implements $f$.
 The synthesized topology directly determines transistor count,
 diffusion-sharing opportunities, and downstream layout
@@ -52,7 +52,7 @@ Safety and correctness are therefore maintained as invariants throughout
 the entire trajectory, not checked post-hoc.
 
 \textbf{(2) A novel GNN architecture for transistor synthesis.}
-We design \method, whose core is the \sgpn (\SGPN) — a four-head
+We design \method, whose core is the \sgpn (\SGPN), a four-head
 factored policy built on a Message Passing Neural Network (MPNN)~\cite{gilmer2017mpnn} backbone.
 Each head specializes in one sub-decision of the action
 (source node, drain node, control variable, polarity),
@@ -105,7 +105,7 @@ routing density, and diffusion gaps).
         exhaustive three-variable sweep \method{} reaches the exact minimum
         count on all $508$ targets ($97.6\%$ already after pretraining), extends
         to the four- and six-variable sweeps, and lowers mean placement cost by
-        $18\%$/$15\%$ over count-optimal cells---with no per-instance solver
+        $18\%$/$15\%$ over count-optimal cells, with no per-instance solver
         call at inference (Sections~\ref{sec:method}--\ref{sec:exp}).
 
 \end{enumerate}
