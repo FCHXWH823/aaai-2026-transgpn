@@ -5,6 +5,9 @@
 
 \subsection{Transistor Networks}
 \label{sec:pre_def}
+Figure~\ref{fig:cmos} shows the object we ultimately synthesize---a CMOS cell
+assembled from two transistor networks; this section formalizes such a network
+and what it means for one to implement a Boolean function.
 Let $\mathbf{x} = (x_1, \ldots, x_N)$ be $N$ Boolean input variables and
 $\pi \in \{0,1\}^N$ an input pattern.
 The \emph{literal alphabet} is
@@ -134,9 +137,10 @@ $\{\lnot\pi : \pi \in \Pon\}$.
 The proof, together with a worked AND2 decomposition, is given in the
 supplementary material (App.~A--B).
 Proposition~\ref{prop:dual} is what allows a \emph{single} policy to serve the
-whole framework: the PDN and PUN are two instances of Problem~A that share the
-same Boolean structure and differ only in their on/off pattern sets, so a
-policy conditioned on those sets is agnostic to transistor type.
+whole framework: the PDN and PUN are two instances of Problem~A---the series
+NMOS and parallel PMOS of Figure~\ref{fig:cmos}, for NAND2---that share the same
+Boolean structure and differ only in their on/off pattern sets, so a policy
+conditioned on those sets is agnostic to transistor type.
 This is the foundation for the joint PDN+PUN training of Phase~3
 (Section~\ref{sec:physical}).
 
