@@ -307,9 +307,13 @@ Section~\ref{sec:pre_phys}.  We score the pair by ASTRAN's own weighted cost,
 \end{aligned}
 \label{eq:phi}
 \end{equation}
-with $(w_c, w_m, w_w, w_d, w_g) = (3, 4, 1, 4, 2)$ matching the ASTRAN
-simulated-annealing cost function exactly, so minimizing $\Phi$ is equivalent
-to minimizing ASTRAN's internal objective.
+whose weights $(w_c, w_m, w_w, w_d, w_g) = (3, 4, 1, 4, 2)$ match ASTRAN's
+simulated-annealing cost exactly.  Wire length $W_{\mathrm{wl}}$ and routing
+density $D_{\mathrm{rt}}$ require a routed cell, so our physical experiments
+optimize and report only the three \emph{exact} placement metrics,
+$\Phi_{\mathrm{plc}} = W_{\mathrm{cpp}} + N_{\mathrm{gm}} + N_{\mathrm{gap}}$
+(unit weights, $w_w{=}w_d{=}0$); the full five-metric $\Phi$ under real ASTRAN
+routing is left to future work.
 
 \paragraph{Paired trajectories.}
 For each function we generate $K$ paired trajectories

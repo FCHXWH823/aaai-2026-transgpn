@@ -3,11 +3,10 @@
 
 We presented \method, which casts transistor network synthesis as a
 safety-masked sequential graph-generation MDP and solves it with a four-head
-policy over a unified graph, correct and safe by construction under per-head
-masks.  Three-phase training---NLL pretraining, GRPO-based transistor-count RL,
+policy over a unified graph.  Three-phase training---NLL pretraining, GRPO-based transistor-count RL,
 and a physical-aware ASTRAN-reward phase---matches the exact optimum on all
-$508$ three-variable targets, scales to four and six variables, and cuts mean
-placement cost $18\%$/$15\%$ below count-optimal cells---with no per-instance
-solver call at inference.
+$508$ three-variable targets, scales to four and six variables, and cuts
+placement cost $18\%$/$15\%$ below count-optimal cells, with no solver call at
+inference.
 % Incorporating transistor sizing and closing the loop with full routing
 % metrics (via ASTRAN compaction and ILP reranking) are natural next steps.

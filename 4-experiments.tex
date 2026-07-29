@@ -37,12 +37,16 @@ Reported transistor counts are the reduced counts $T_{\mathrm{eff}}$ of
 Section~\ref{sec:reduction}.
 Phase~3 initializes from the Phase~2 checkpoint, generates paired PDN+PUN
 trajectories per function, and evaluates complete pairs with ASTRAN
-(freePDK45, SA quality~1, weights $(3,4,1,4,2)$).
+(freePDK45, SA quality~1), optimizing the exact placement cost
+$\Phi_{\mathrm{plc}}=\mathrm{CPP}+\mathrm{GM}+\mathrm{Gaps}$
+(Section~\ref{sec:physical}).
 All experiments run on a single NVIDIA H100 GPU.
 
 \begin{table}[t]
 \centering
-\caption{Benchmark scale. Each function yields a PDN and a PUN target.}
+\caption{Benchmark scale. $N{=}3$/$N{=}4$ functions yield two targets each
+         (PDN and PUN); the $N{=}6$ NSP set is single-network ($f$ only), so
+         targets equal functions.}
 \label{tab:datasets}
 \begin{tabular}{lccc}
 \toprule
@@ -107,16 +111,17 @@ solved by pretraining while compaction is the task left to Phase~2.
 
 \begin{table}[t]
 \centering
-\caption{Optimality rate (fraction of targets reaching the exact SAT optimum).
-         Rates marked $\dagger$ ($N{=}4$, $N{=}6$) are over the evaluated
-         subset of each sweep.}
+\caption{Optimality rate (\%): fraction reaching the exact SAT optimum.
+         Parenthesized counts are targets evaluated; the $N{=}4$ column is a
+         $\NfourEval$-target subset of the full sweep, and $\dagger$ rates
+         ($N{=}4$, $N{=}6$) are over evaluated targets, not the whole sweep.}
 \label{tab:main}
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{lccc}
 \toprule
-\textbf{Method} & \textbf{$N{=}3$ (508)} & \textbf{$N{=}4$} & \textbf{$N{=}6$ NSP} \\
+\textbf{Method} & \textbf{$N{=}3$ (508)} & \textbf{$N{=}4$ (\NfourEval)} & \textbf{$N{=}6$ NSP (53)} \\
 \midrule
-MiniTNtk~\cite{miniTNtk}   & $100$ & $100$ & $100$ \\
+MiniTNtk                   & $100$ & $100$ & $100$ \\
 \method{} Phase~1          & $97.6$ & $49.2$ & $0$ \\
 \method{} Phase~2 (ours)   & $\mathbf{100}$ & $88^{\dagger}$ & $24.5^{\dagger}$ \\
 \bottomrule
@@ -124,7 +129,7 @@ MiniTNtk~\cite{miniTNtk}   & $100$ & $100$ & $100$ \\
 \end{table}
 
 \noindent
-MiniTNtk is an exact SAT-based solver that supplies the reference
+MiniTNtk~\cite{miniTNtk} is an exact SAT-based solver that supplies the reference
 optima and therefore attains $100\%$ by construction; its cost is a
 per-instance solver invocation, whereas \method{} amortizes synthesis into a
 learned policy and needs no solver at inference, matching the exact optimum on
@@ -195,35 +200,26 @@ rather than failing to compact.
 
 \paragraph{Top-$k$ behaviour of the pretrained policy.}
 Although top-$1$ Head-1 accuracy is $0.50$ on $6$-input states, the correct
-node lies in the top $3$ candidates $78\%$ of the time and in the top $5$
-$89\%$ of the time (mean rank $1.6$ of ${\sim}64$).
-Since Phase~2 \emph{samples} from the policy rather than taking its argmax,
-top-$k$ mass — not top-$1$ accuracy — is the relevant measure of prior
-quality, which explains why a policy with $0.50$ top-$1$ accuracy still
-finetunes effectively.
+node lies in the top $3$ candidates $78\%$ of the time and the top $5$ $89\%$
+(mean rank $1.6$ of ${\sim}64$).  Since Phase~2 \emph{samples} rather than
+taking the argmax, this top-$k$ mass---not top-$1$ accuracy---is why a
+$0.50$-accuracy prior still finetunes effectively.
 
 \paragraph{Where source selection fails.}
-Accuracy is $0.62$ on small partial networks but falls to $0.36$ on
-mid-sized ones, and is markedly lower when the target is an interior node
-($0.37$) than a rail ($0.66$), with the model over-predicting rails.
-Errors are largely not near-misses and the model is confidently wrong rather
-than undecided, indicating a learning rather than a tie-breaking failure that
-richer per-node structural features could address.
+Accuracy falls from $0.62$ on small partial networks to $0.36$ on mid-sized
+ones, and is lower for interior-node targets ($0.37$) than rails ($0.66$),
+which the model over-predicts.  Errors are confident rather than near-misses---a
+learning failure that richer per-node features could address.
 
 \paragraph{Representational ceiling.}
-A Weisfeiler--Leman refinement over the unified graph states assigns every
-candidate node a distinct colour within two rounds, so the achievable Head-1
-accuracy is $1.0$.
-The observed gap is therefore an optimization and inductive-bias limitation,
-not a limitation of the state encoding.
+A Weisfeiler--Leman refinement colours every candidate node distinctly within
+two rounds, so Head-1 accuracy of $1.0$ is achievable; the observed gap is thus
+an optimization and inductive-bias limitation, not one of the state encoding.
 
 \paragraph{Cost of the reward variants.}
-All Phase-2 reward variants cost essentially the same per update
-($\approx 1.6$\,s), since rollout generation dominates while the baseline and
-exploration terms are nearly free.  Throughput is instead governed by device
-sharing---per-update time grows from $1.9$\,s at one process per GPU to $49$\,s
-at sixteen, as each step issues many small kernels that serialize---so variant
-comparisons are meaningful only at matched concurrency.
+All Phase-2 reward variants cost $\approx 1.6$\,s per update (rollout generation
+dominates); throughput is set by device sharing, so variant comparisons are
+meaningful only at matched concurrency.
 
 \subsection{Phase 3: Physical-Aware Placement}
 \label{sec:physical_exp}
@@ -236,13 +232,10 @@ trajectories.  We ask whether optimizing for placement --- rather than
 transistor count alone --- yields cells that lay out more compactly.
 
 Table~\ref{tab:physical} compares, over all $254$ three-input functions, the
-placement cost of \textbf{MiniTNtk}'s count-optimal networks --- the reference
-solutions our own counts are measured against --- with our Phase-3
-physically-optimized networks, scored by ASTRAN's exact placement metrics: cell
-width (CPP), gate mismatches (GM), and diffusion gaps, summed as
-$\Phi_{\mathrm{plc}}$.  MiniTNtk minimizes transistor count only; Phase~3
-instead selects, among the many count-optimal realizations of a function,
-those that also place compactly, lowering mean placed-cell cost by $18\%$
+$\Phi_{\mathrm{plc}}$ of \textbf{MiniTNtk}'s count-optimal networks with our
+Phase-3 physically-optimized networks.  MiniTNtk minimizes transistor count
+only; Phase~3 instead selects, among the many count-optimal realizations of a
+function, those that also place compactly, lowering mean cost by $18\%$
 ($3$-input, $12.74\!\to\!10.44$) and $15\%$ ($4$-input) while still matching
 the optimal transistor count on $95\%$ of the four-input subset.  Transistor
 count and layout quality are thus distinct objectives.
@@ -250,11 +243,11 @@ count and layout quality are thus distinct objectives.
 \begin{table}[t]
 \centering
 \caption{Physical placement cost
-         $\Phi_{\mathrm{plc}} = \mathrm{CPP}+\mathrm{GM}+\mathrm{Gaps}$ (lower
-         is better): MiniTNtk's count-optimal cells vs.\ our
-         physically-optimized cells.  Three-input covers all $254$ cells;
-         four-input covers the $128$ cells for which Phase~3 produces a
-         placement-improved cell.}
+         $\Phi_{\mathrm{plc}} = \mathrm{CPP}+\mathrm{GM}+\mathrm{Gaps}$ (the
+         exact placement metrics, lower is better): MiniTNtk's count-optimal
+         cells vs.\ ours, scored by the \emph{same} $\Phi_{\mathrm{plc}}$.
+         Three-input covers all $254$ cells; four-input covers the $128$ cells
+         for which Phase~3 synthesized a complete cell (both PDN and PUN).}
 \label{tab:physical}
 \begin{tabular}{lcc}
 \toprule
