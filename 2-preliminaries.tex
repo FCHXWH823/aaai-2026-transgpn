@@ -102,8 +102,20 @@ between $\mathrm{GND}$ and the output $\mathrm{ZN}$; the \emph{pull-up
 network} (PUN) is a PMOS transistor network connected between $\mathrm{VDD}$
 and $\mathrm{ZN}$.
 The cell is correct iff the PDN pulls $\mathrm{ZN}$ low whenever $f = 0$ and
-the PUN pulls $\mathrm{ZN}$ high whenever $f = 1$.
+the PUN pulls $\mathrm{ZN}$ high whenever $f = 1$ (Figure~\ref{fig:cmos}).
 \end{definition}
+
+\begin{figure}[t]
+\centering
+\resizebox{\columnwidth}{!}{\input{fig/cmos_cell}}
+\caption{A CMOS standard cell for $f=\lnot(a\,b)$ (NAND2).  Each transistor is
+a literal-controlled switch (Def.~\ref{def:tnet}): the pull-up network (PUN,
+PMOS in parallel) drives the output $\mathrm{ZN}$ high on the on-patterns of
+$f$, and the pull-down network (PDN, NMOS in series) drives it low on the
+off-patterns.  Synthesizing the cell therefore splits into two switching-network
+problems---one per network (Prop.~\ref{prop:dual}).}
+\label{fig:cmos}
+\end{figure}
 
 Problem~B is not a new problem: it decomposes into two instances of
 Problem~A.
