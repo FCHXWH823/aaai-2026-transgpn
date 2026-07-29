@@ -1,18 +1,13 @@
 \section{Conclusion}
 \label{sec:con}
 
-We presented \method, a learning-based framework that casts transistor
-network synthesis as a safety-masked sequential graph-generation MDP.
-A single four-head policy operates on a unified graph that fuses the partial
-network with a fixed SOP encoding of the target, placing transistors under
-per-head masks that make every trajectory correct and safe by construction.
-Three-phase training---NLL pretraining, PPO with a GRPO baseline and a
-self-tightening reward, and a physical-aware phase that rewards the joint
-PDN/PUN cell by its ASTRAN placement cost---drives the same policy from
-imitation toward minimum transistor count and layout quality.
-On the exhaustive three-variable sweep the policy matches the exact SAT
-optimum on all $508$ targets, extends to four- and six-variable functions,
-and lowers mean placement cost by $18\%$/$15\%$ over count-optimal cells---all
-without a per-instance solver call at inference.
+We presented \method, which casts transistor network synthesis as a
+safety-masked sequential graph-generation MDP and solves it with a four-head
+policy over a unified graph, correct and safe by construction under per-head
+masks.  Three-phase training---NLL pretraining, GRPO-based transistor-count RL,
+and a physical-aware ASTRAN-reward phase---matches the exact optimum on all
+$508$ three-variable targets, scales to four and six variables, and cuts mean
+placement cost $18\%$/$15\%$ below count-optimal cells---with no per-instance
+solver call at inference.
 % Incorporating transistor sizing and closing the loop with full routing
 % metrics (via ASTRAN compaction and ILP reranking) are natural next steps.

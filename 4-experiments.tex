@@ -218,13 +218,11 @@ not a limitation of the state encoding.
 
 \paragraph{Cost of the reward variants.}
 All Phase-2 reward variants cost essentially the same per update
-($\approx 1.6$\,s under matched conditions), because rollout generation
-dominates while the baseline and exploration terms are comparatively free.
-Throughput is instead governed by device sharing: per-update time grows from
-$1.9$\,s with one process per GPU to $20$\,s at five and $49$\,s at sixteen,
-since each generation step issues many small kernels that serialize.
-Wall-clock comparisons between variants are therefore only meaningful at
-matched concurrency.
+($\approx 1.6$\,s), since rollout generation dominates while the baseline and
+exploration terms are nearly free.  Throughput is instead governed by device
+sharing---per-update time grows from $1.9$\,s at one process per GPU to $49$\,s
+at sixteen, as each step issues many small kernels that serialize---so variant
+comparisons are meaningful only at matched concurrency.
 
 \subsection{Phase 3: Physical-Aware Placement}
 \label{sec:physical_exp}
@@ -242,11 +240,11 @@ solutions our own counts are measured against --- with our Phase-3
 physically-optimized networks, scored by ASTRAN's exact placement metrics: cell
 width (CPP), gate mismatches (GM), and diffusion gaps, summed as
 $\Phi_{\mathrm{plc}}$.  MiniTNtk minimizes transistor count only; Phase~3
-lowers the mean placed-cell cost by $18\%$ ($12.74\!\to\!10.44$) by selecting,
-among the many count-optimal realizations of a function, those that also place
-compactly.  Transistor count and layout quality are thus distinct objectives,
-and optimizing the latter directly is what a count-minimizing solver like
-MiniTNtk leaves on the table.
+instead selects, among the many count-optimal realizations of a function,
+those that also place compactly, lowering mean placed-cell cost by $18\%$
+($3$-input, $12.74\!\to\!10.44$) and $15\%$ ($4$-input) while still matching
+the optimal transistor count on $95\%$ of the four-input subset.  Transistor
+count and layout quality are thus distinct objectives.
 
 \begin{table}[t]
 \centering
@@ -267,9 +265,6 @@ MiniTNtk (count-optimal) & $12.74$          & $19.80$ \\
 \end{tabular}
 \end{table}
 
-On these cells Phase~3 lowers mean placement cost by $18\%$ ($3$-input) and
-$15\%$ ($4$-input) relative to count-optimal networks, while matching the
-optimal transistor count on $95\%$ of the four-input subset.
 The routing-aware objective (adding wire length and routing density under real
 ASTRAN routing) is ongoing.
 
