@@ -52,7 +52,7 @@ Safety and correctness are therefore maintained as invariants throughout
 the entire trajectory, not checked post-hoc.
 
 \textbf{(2) A novel GNN architecture for transistor synthesis.}
-We design \method, whose core is the \sgpn (\SGPN) — a five-head
+We design \method, whose core is the \sgpn (\SGPN) — a four-head
 factored policy built on a Message Passing Neural Network (MPNN)~\cite{gilmer2017mpnn} backbone.
 Each head specializes in one sub-decision of the action
 (source node, drain node, control variable, polarity),
@@ -85,13 +85,13 @@ routing density, and diffusion gaps).
         action masks is \emph{correct and safe by construction}, with no
         post-hoc verification needed (Section~\ref{sec:theory}).
 
-  \item \textbf{A new five-head architecture for transistor network synthesis.}
+  \item \textbf{A new four-head architecture for transistor network synthesis.}
         \method{} decomposes transistor placement into four factored
         sub-decisions, each handled by a specialized MLP head sharing
         an MPNN backbone.
         Key design choices include:
         (a) a \emph{unified graph} state that fuses the partial circuit
-            $G_t$ with a fixed SOP compensate network $C$ encoding the
+            $G_t$ with a fixed SOP compensate network $C_g$ encoding the
             target function, giving the GNN simultaneous access to
             current topology and remaining coverage obligations;
         (b) a \emph{virtual new-node embedding} that extends the node space

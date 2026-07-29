@@ -70,8 +70,8 @@ valid partial sub-networks.
 
 \paragraph{State.}
 The state at step $t$ is the \emph{unified graph}
-$\mathcal{G}_t = G_t \cup C$, where $G_t = (V_t, E_t)$ is the partial
-synthesized network and $C = G_{\mathrm{SOP}}(g)$ is the fixed compensate
+$H_t = G_t \cup C_g$, where $G_t = (V_t, E_t)$ is the partial
+synthesized network and $C_g = G_{\mathrm{SOP}}(g)$ is the fixed compensate
 network of Theorem~\ref{thm:sop}, held constant throughout the episode.
 The two components share only $\SRC$ and $\SNK$; all internal nodes are
 disjoint.
@@ -79,7 +79,7 @@ This gives the GNN simultaneous access to the topology built so far and to the
 full logical specification of $g$, so the policy can reason jointly about what
 exists and which coverage obligations remain.
 Nodes carry their type ($\SRC$, $\SNK$, $G$-internal, $C$-internal), their
-degree in $G_t$ and in $C$ separately, and a coverage indicator; edges carry
+degree in $G_t$ and in $C_g$ separately, and a coverage indicator; edges carry
 component membership, variable index, and polarity (dimensions in App.~C).
 The node space is extended to $V_t^+ = V_t \cup \{v_{\mathrm{new}}\}$ by a
 single learnable embedding $\mathbf{e}_{\mathrm{new}} \in \mathbb{R}^d$, which
@@ -147,12 +147,12 @@ rises automatically whenever the policy discovers a better solution.
 \centering
 \input{fig/sgpn_arch}
 \caption{The \sgpn (\SGPN).  A shared MPNN backbone encodes the unified graph
-$\mathcal{G}_t = G_t \cup C_{\mathrm{SOP}}$; four factored heads with per-head
+$H_t = G_t \cup C_g$; four factored heads with per-head
 safety masks decode the transistor placement $(u^*, v^*, k^*, s^*)$.}
 \label{fig:sgpn}
 \end{figure}
 
-The \SGPN encodes $\mathcal{G}_t$ with an MPNN backbone~\cite{gilmer2017mpnn}
+The \SGPN encodes $H_t$ with an MPNN backbone~\cite{gilmer2017mpnn}
 of $L$ message-passing layers and hidden dimension $d$, followed by a
 self-attention block over the nodes of each graph, yielding node features
 $\mathbf{h}_i \in \mathbb{R}^d$ and a graph summary
@@ -173,7 +173,7 @@ variables and signs that keep $(u^*, v^*, \ell)$ safe.
 The four decisions factor as
 \begin{equation}
 \begin{aligned}
-  &\log \pi(a \mid \mathcal{G}_t) = \log p_1(u) + \log p_2(v \mid u) \\
+  &\log \pi(a \mid H_t) = \log p_1(u) + \log p_2(v \mid u) \\
   &\qquad + \log p_3(k \mid u,v) + \log p_4(s \mid u,v,k),
 \end{aligned}
 \label{eq:logp}
@@ -242,9 +242,9 @@ The objective is the mean negative log-likelihood of the reference actions,
 \[
   \mathcal{L}_{\mathrm{NLL}}
   = -\frac{1}{|\mathcal{D}|} \sum_{(G^*, g) \in \mathcal{D}}
-    \sum_{t=1}^{|E^*|} \log \pi(a_t^* \mid \mathcal{G}_{t-1}),
+    \sum_{t=1}^{|E^*|} \log \pi(a_t^* \mid H_{t-1}),
 \]
-where $\mathcal{G}_{t-1}$ is built from the prefix $G_{t-1}^*$ and the fixed
+where $H_{t-1}$ is built from the prefix $G_{t-1}^*$ and the fixed
 compensate network $C_g$.  We train with Adam until convergence.
 
 \subsection{Phase 2: PPO Finetuning}
@@ -496,7 +496,7 @@ difference from the Phase~2 loop.
 
 % \begin{equation}
 % \begin{aligned}
-%   &\log \pi(a \mid \mathcal{G}_t) = \log p_1(u) + \log p_2(v \mid u) \\
+%   &\log \pi(a \mid H_t) = \log p_1(u) + \log p_2(v \mid u) \\
 %   &\qquad + \log p_3(k \mid u,v) + \log p_4(s \mid u,v,k),
 % \end{aligned}
 % \label{eq:logp}
@@ -567,7 +567,7 @@ difference from the Phase~2 loop.
 % \[
 %   \mathcal{L}_{\mathrm{NLL}}
 %   = -\frac{1}{|\mathcal{D}|} \sum_{(G^*, f) \in \mathcal{D}}
-%     \sum_{t=1}^{|E^*|} \log \pi(a_t^* \mid \mathcal{G}_{t-1}),
+%     \sum_{t=1}^{|E^*|} \log \pi(a_t^* \mid H_{t-1}),
 % \]
 % where $a_t^*$ is the ground-truth transistor at step $t$.
 % The unified graph $\mathcal{G}_{t-1}$ is constructed from the partial
