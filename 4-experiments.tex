@@ -112,9 +112,10 @@ solved by pretraining while compaction is the task left to Phase~2.
 \begin{table}[t]
 \centering
 \caption{Optimality rate (\%): fraction reaching the exact SAT optimum.
-         Parenthesized counts are targets evaluated; the $N{=}4$ column is a
-         $\NfourEval$-target subset of the full sweep, and $\dagger$ rates
-         ($N{=}4$, $N{=}6$) are over evaluated targets, not the whole sweep.}
+         Parenthesized counts are the targets evaluated; both phases of the
+         $N{=}4$ column are over the same $\NfourEval$-target subset of the full
+         four-variable sweep, and $\dagger$ marks the $N{=}6$ rate over its
+         evaluated NSP subset.}
 \label{tab:main}
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{lccc}
@@ -122,8 +123,8 @@ solved by pretraining while compaction is the task left to Phase~2.
 \textbf{Method} & \textbf{$N{=}3$ (508)} & \textbf{$N{=}4$ (\NfourEval)} & \textbf{$N{=}6$ NSP (53)} \\
 \midrule
 MiniTNtk                   & $100$ & $100$ & $100$ \\
-\method{} Phase~1          & $97.6$ & $49.2$ & $0$ \\
-\method{} Phase~2 (ours)   & $\mathbf{100}$ & $88^{\dagger}$ & $24.5^{\dagger}$ \\
+\method{} Phase~1          & $97.6$ & $23.4$ & $0$ \\
+\method{} Phase~2 (ours)   & $\mathbf{100}$ & $88.0$ & $24.5^{\dagger}$ \\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -134,8 +135,9 @@ optima and therefore attains $100\%$ by construction; its cost is a
 per-instance solver invocation, whereas \method{} amortizes synthesis into a
 learned policy and needs no solver at inference, matching the exact optimum on
 all $508$ three-input targets.
-Daggers ($\dagger$) mark rates over the evaluated subset of the $N{=}4$ and
-$N{=}6$ sweeps.
+The $N{=}4$ column is measured over $\NfourEval$ evaluated targets (a subset of
+the full four-variable sweep), and $\dagger$ marks the $N{=}6$ rate over its
+evaluated NSP subset.
 
 \subsection{Ablation: Supervision Order Dominates Architecture}
 \label{sec:ablation_order}
