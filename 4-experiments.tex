@@ -13,9 +13,9 @@ Each sweep enumerates, per function, one synthesis attempt per transistor
 budget, recording the realized network when the budget is satisfiable; the
 smallest satisfiable budget is that function's exact optimum.
 Every function contributes \emph{two} synthesis targets: the pull-down
-network realizing $f$ and the pull-up network realizing $\neg f(\neg x)$.
+network realizing $\neg f$ and the pull-up network realizing $f(\neg x)$.
 Reference counts for the pull-up target are obtained by matching the dual
-function $\neg f(\neg x)$ back to its own entry in the sweep.
+function $f(\neg x)$ back to its own entry in the sweep.
 This yields $508$ targets at $N=3$ and $131{,}068$ at $N=4$.
 Because the sweeps are exhaustive, evaluation is against exact optima rather
 than a held-out split; we additionally freeze a random subset of $256$

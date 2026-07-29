@@ -1,63 +1,84 @@
-% ── Figure: SGPN Architecture ─────────────────────────────────────────────
+% ── Figure: worked example (a) + SGPN sequential pipeline (b) ──────────────
+\resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[
-    >=Stealth,
-    font=\small,
-    bigbox/.style = {draw, rounded corners=4pt, minimum width=7.6cm,
-                     minimum height=0.65cm, align=center},
-    head/.style   = {draw, rounded corners=3pt, minimum width=1.6cm,
-                     minimum height=0.85cm, align=center, fill=blue!8,
+    >=Stealth, font=\small,
+    bus/.style    = {draw, rounded corners=3pt, align=center, font=\scriptsize},
+    net/.style    = {circle, draw, minimum size=5.4mm, inner sep=0pt,
                      font=\scriptsize},
-    mask/.style   = {draw, rounded corners=2pt, minimum width=1.55cm,
-                     minimum height=0.36cm, align=center, fill=orange!20,
+    tr/.style     = {thick},
+    ontr/.style   = {line width=1.5pt, green!55!black},
+    head/.style   = {draw, rounded corners=3pt, minimum width=1.35cm,
+                     minimum height=0.72cm, align=center, fill=blue!8,
                      font=\scriptsize},
+    mask/.style   = {draw, rounded corners=2pt, minimum width=1.32cm,
+                     minimum height=0.30cm, align=center, fill=orange!20,
+                     font=\tiny},
     arr/.style    = {->, thick},
+    dep/.style    = {->, very thick, red!70!black},
     lbl/.style    = {font=\scriptsize, text=gray},
+    pl/.style     = {font=\scriptsize\bfseries},
 ]
 
-%% ── Input ─────────────────────────────────────────────────────────────────
-\node[bigbox, fill=green!8] (ug) at (0, 0)
-  {Unified Graph $\;H_t = G_t \;\cup\; C_g$};
-\node[lbl, left=0.15cm of ug] {input};
+%% ======================= Panel (a): worked example =======================
+\node[pl] (pa) at (-3.95, 1.05) {(a)};
+\node[net] (src) at (-3.0, 0.45) {$S$};
+\node[net] (na)  at (-1.7, 0.45) {$a$};
+\node[net] (snk) at (-0.4, 0.45) {$T$};
+% series chain x1 . x2  (green = a conducting path)
+\draw[ontr] (src) -- (na) node[midway, above, font=\scriptsize, text=black] {$x_1$};
+\draw[ontr] (na)  -- (snk) node[midway, above, font=\scriptsize, text=black] {$x_2$};
+% parallel shortcut x3
+\draw[tr] (src) to[bend right=32]
+    node[midway, below=1pt, font=\scriptsize] {$x_3$} (snk);
+% annotation to the right, well clear of the graph
+\node[align=left, anchor=west, font=\scriptsize] at (0.55, 0.45)
+    {$g = x_1x_2 + x_3$.\\[1pt]
+     A conducting $S\!\to\!T$ path\\
+     appears \emph{exactly} on the\\
+     on-patterns of $g$ (green:\\
+     the path for input $110$).};
 
-%% ── MPNN ──────────────────────────────────────────────────────────────────
-\node[bigbox, fill=gray!10, below=0.42cm of ug] (mpnn)
-  {\textbf{MPNN} Backbone ($L$ layers)
-   $\quad\mathbf{h}_i\!\in\!\mathbb{R}^d,\;$
-   $\mathbf{g}\!\in\!\mathbb{R}^{2d}$};
+% divider between panels
+\draw[gray!45, dashed] (-4.25, -0.35) -- (4.35, -0.35);
+
+%% ================= Panel (b): SGPN sequential synthesis ==================
+\node[pl] (pb) at (-3.95, -0.75) {(b)};
+
+\node[bus, fill=green!8, minimum width=7.9cm] (ug) at (0.05, -1.05)
+    {Unified graph $H_t = G_t \cup C_g$\; (partial network $+$ SOP target)};
+\node[bus, fill=gray!10, minimum width=7.9cm, below=0.26cm of ug] (mpnn)
+    {\textbf{MPNN} backbone ($L$ layers)\;$\Rightarrow$\;node emb.\ $\mathbf{h}_i$,\;
+     summary $\mathbf{g}$};
 \draw[arr] (ug) -- (mpnn);
-\node[lbl, left=0.15cm of mpnn] {encode};
 
-%% ── Four heads ────────────────────────────────────────────────────────────
-\node[head, below=0.8cm of mpnn, xshift=-2.85cm] (h1)
-  {Head~1\\Node-1};
-\node[head, below=0.8cm of mpnn, xshift=-0.95cm] (h2)
-  {Head~2\\Node-2};
-\node[head, below=0.8cm of mpnn, xshift= 0.95cm] (h3)
-  {Head~3\\Variable};
-\node[head, below=0.8cm of mpnn, xshift= 2.85cm] (h4)
-  {Head~4\\Sign};
+%% four heads, drawn as a left-to-right dependent chain
+\node[head, below=0.62cm of mpnn, xshift=-2.95cm] (h1) {Head 1\\source $u$};
+\node[head, right=0.30cm of h1] (h2) {Head 2\\drain $v\!\mid\!u$};
+\node[head, right=0.30cm of h2] (h3) {Head 3\\var.\ $k\!\mid\!u,v$};
+\node[head, right=0.30cm of h3] (h4) {Head 4\\sign $s\!\mid\!u,v,k$};
 
-\draw[arr] (mpnn.south) -- ++(0,-0.10) -| (h1.north);
-\draw[arr] (mpnn.south) -- ++(0,-0.10) -| (h2.north);
-\draw[arr] (mpnn.south) -- ++(0,-0.10) -| (h3.north);
-\draw[arr] (mpnn.south) -- ++(0,-0.10) -| (h4.north);
-\node[lbl, left=0.15cm of h1] {decode};
+% MPNN feeds every head
+\foreach \h in {h1,h2,h3,h4} { \draw[arr] (mpnn.south) -- (\h.north); }
+% sequential dependency: each selection conditions the next head
+\draw[dep] (h1) -- (h2);
+\draw[dep] (h2) -- (h3);
+\draw[dep] (h3) -- (h4);
 
-%% ── Safety masks ──────────────────────────────────────────────────────────
-\node[mask, below=0.22cm of h1] (m1) {\textit{safety mask}};
-\node[mask, below=0.22cm of h2] (m2) {\textit{safety mask}};
-\node[mask, below=0.22cm of h3] (m3) {\textit{safety mask}};
-\node[mask, below=0.22cm of h4] (m4) {\textit{safety mask}};
-\draw[arr] (h1)--(m1); \draw[arr] (h2)--(m2);
-\draw[arr] (h3)--(m3); \draw[arr] (h4)--(m4);
+% per-head safety masks
+\node[mask, below=0.16cm of h1] (m1) {\textit{mask}};
+\node[mask, below=0.16cm of h2] (m2) {\textit{mask}};
+\node[mask, below=0.16cm of h3] (m3) {\textit{mask}};
+\node[mask, below=0.16cm of h4] (m4) {\textit{mask}};
+\foreach \h/\m in {h1/m1,h2/m2,h3/m3,h4/m4} { \draw[arr] (\h)--(\m); }
 
-%% ── Action output ─────────────────────────────────────────────────────────
-\node[bigbox, fill=red!7, below=0.5cm of m2, xshift=0.95cm] (act)
-  {Action $(u^*,\, v^*,\, k^*,\, s^*)$: one transistor placement};
-\draw[arr] (m1.south) -- ++(0,-0.15) -| (act.north);
-\draw[arr] (m2.south) -- ++(0,-0.15) -| (act.north);
-\draw[arr] (m3.south) -- ++(0,-0.15) -| (act.north);
-\draw[arr] (m4.south) -- ++(0,-0.15) -| (act.north);
-\node[lbl, left=0.15cm of act] {output};
+% action + feedback loop
+\node[bus, fill=red!7, minimum width=6.6cm, below=0.42cm of m2, xshift=1.02cm]
+    (act) {Place transistor $(u^*,v^*,k^*,s^*)$ into $G_t$};
+\foreach \m in {m1,m2,m3,m4} { \draw[arr] (\m.south) -- ++(0,-0.10) -| (act.north); }
+% loop back to the unified graph (next step)
+\draw[arr, blue!55!black] (act.east) -- ++(0.55,0)
+    |- node[pos=0.25, right, font=\tiny, text=blue!55!black, align=left]
+       {\;append,\\\;repeat} (ug.east);
 
-\end{tikzpicture}
+\end{tikzpicture}%
+}

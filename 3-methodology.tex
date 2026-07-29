@@ -146,9 +146,16 @@ rises automatically whenever the policy discovers a better solution.
 \begin{figure}[t]
 \centering
 \input{fig/sgpn_arch}
-\caption{The \sgpn (\SGPN).  A shared MPNN backbone encodes the unified graph
-$H_t = G_t \cup C_g$; four factored heads with per-head
-safety masks decode the transistor placement $(u^*, v^*, k^*, s^*)$.}
+\caption{\textbf{(a)} A transistor network is a switching graph: an input
+pattern yields a conducting source-to-sink ($S{\to}T$) path exactly on the
+on-patterns of the target (coverage), and no path on the off-patterns
+(safety). \textbf{(b)} The \sgpn (\SGPN) synthesizes such a network one
+transistor at a time. A shared MPNN backbone encodes the unified graph
+$H_t = G_t \cup C_g$ (the partial network fused with the fixed SOP target);
+the four heads then fire \emph{sequentially}---source $u$, drain $v$, variable
+$k$, sign $s$---each conditioned on the earlier selections and its own safety
+mask. The placed transistor $(u^*,v^*,k^*,s^*)$ is appended to $G_t$ and the
+step repeats until the network covers the target.}
 \label{fig:sgpn}
 \end{figure}
 
